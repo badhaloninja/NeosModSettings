@@ -114,7 +114,7 @@ namespace NeosModSettings
                 // Config Panel
                 ui.NestInto(right);
 
-                var configUiRoot = buildNMSInfo(ui); // Shows when no mod is selected
+                buildNMSInfo(ui, out RectTransform configUiRoot); // Shows when no mod is selected
 
                 ui.NestInto(configUiRoot);
                 var splitList = ui.SplitVertically(96f, 884f, 100f);
@@ -199,7 +199,7 @@ namespace NeosModSettings
                 selectedModVar.Value.OnValueChange += generateConfigItems; // Regen Config items on change
             }
 
-            private static RectTransform buildNMSInfo(UIBuilder ui)
+            private static void buildNMSInfo(UIBuilder ui, out RectTransform content)
             {
                 Slot descRoot = ui.Next("Info"); // New Slot for the NeosModSettings info
                 ui.Nest();
@@ -236,13 +236,11 @@ namespace NeosModSettings
 
                 ui.Text(Current.Version);
 
-                ui.NestOut(); // Exit Footer
 
-                ui.NestOut(); // Exit Info
-
+                ui.NestInto(descRoot.Parent); // Go up one from Info
 
                 var contentRoot = ui.Empty("Content");
-
+                content = contentRoot.GetComponent<RectTransform>();
                 // Drive the state of info based on if a mod is selected
                 var dynVar = ui.Root.AttachComponent<DynamicValueVariable<string>>();
                 dynVar.VariableName.Value = "Config/SelectedMod";
@@ -257,7 +255,6 @@ namespace NeosModSettings
 
                 ui.Style.PreferredWidth = -1f;
                 RadiantUI_Constants.SetupDefaultStyle(ui); // Reset style
-                return contentRoot.GetComponent<RectTransform>();
             }
 
             private static void GenerateModButtons(UIBuilder ui)
