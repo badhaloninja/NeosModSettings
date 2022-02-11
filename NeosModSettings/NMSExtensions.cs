@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using FrooxEngine;
 using FrooxEngine.UIX;
 using BaseX;
@@ -62,7 +58,6 @@ namespace NeosModSettings
 			object[] args = new object[] { root, name, value };
 			
 			return (bool)genMethod.Invoke(null, args);
-			//value = Convert.ChangeType(method.Invoke(null, new[] { value }), paramType);
 		}
 	}
 }
