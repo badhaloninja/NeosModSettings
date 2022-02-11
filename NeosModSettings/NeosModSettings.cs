@@ -13,7 +13,7 @@ namespace NeosModSettings
     {
         public override string Name => "NeosModSettings";
         public override string Author => "badhaloninja";
-        public override string Version => "1.0.0";
+        public override string Version => "1.0.0-alpha";
         public override string Link => "https://github.com/badhaloninja/NeosModSettings";
 
 
