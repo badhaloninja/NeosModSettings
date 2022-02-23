@@ -37,6 +37,22 @@ namespace NeosModSettings
 			if (dynamicVariableSpace == null) return false;
 			return dynamicVariableSpace.TryWriteValue<T>(text, value);
 		}
+		public static bool TryWriteDynamicType(this Slot root, string name, Type value)
+		{
+			DynamicVariableHelper.ParsePath(name, out string spaceName, out string text);
+
+			if (string.IsNullOrEmpty(text)) return false;
+
+			DynamicVariableSpace dynamicVariableSpace = root.FindSpace(spaceName);
+			if (dynamicVariableSpace == null) return false;
+			if(dynamicVariableSpace.TryReadValue(text, out SyncType typeField))
+            {
+				if (typeField == null) return false;
+				typeField.Value = value;
+				return true;
+            }
+			return false;
+		}
 		public static bool TryReadDynamicValue<T>(this Slot root, string name, out T value)
 		{
 			value = Coder<T>.Default;
@@ -53,6 +69,8 @@ namespace NeosModSettings
 
 		public static bool TryWriteDynamicValueOfType(this Slot root, Type type, string name, object value)
 		{
+			if (type == typeof(Type)) return root.TryWriteDynamicType(name, (Type)value);
+
 			var method = typeof(NMSExtensions).GetMethod(nameof(TryWriteDynamicValue));
 			var genMethod = method.MakeGenericMethod(type);
 			object[] args = new object[] { root, name, value };
