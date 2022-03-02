@@ -134,7 +134,7 @@ namespace NeosModSettings
 
 
                 ui.NestInto(footer);
-                var splits = ui.SplitHorizontally(0.25f, 0.65f, 0.1f);
+                var splits = ui.SplitHorizontally(0.25f, 0.55f, 0.25f);
 
                 ui.NestInto(splits[0]); //Author (Left)
                 ui.Text(Current.Author)
@@ -217,7 +217,7 @@ namespace NeosModSettings
 
                 ui.Spacer(45f);
                 ui.Style.PreferredHeight = 250f;
-                string Desc = "NeosModSettings is a modifcation to the base game that allows the users to directly interact with the mods that they have installed onto their game from inside the application.\n\nCurrently only supports configs that are valid DynamicValueVariable types and those of type Type meaning <b>Arrays are not supported</b> <size=30%>including any other collections</size>";
+                string Desc = "NeosModSettings is a modifcation to the base game that allows the users to directly interact with the mods that they have installed onto their game from inside the application.\n\nCurrently only supports configs that are valid DynamicValueVariable types and those of type Type meaning <b>Arrays are not supported</b> <size=30%>including any other collections</size>\n\n<b><color=#d33>This is a pre-release</color></b>";
                 ui.Text(Desc, alignment: Alignment.MiddleCenter);
 
 
@@ -479,10 +479,13 @@ namespace NeosModSettings
                 ui.NestOut();
             }
 
-
-
             public static void generateConfigTypeField(UIBuilder ui, string ModName, ModConfiguration config, ModConfigurationKey key)
-            { // *:* )
+            { /* *:* )
+               * I wanted these field generation functions to be more dynamic and not have to have a separate one just for type Type
+               * but I am just too tired bc of current events
+               *
+               *
+               */
                 Debug($"GenerateConfigField for type Type");
 
                 ui.Style.MinHeight = 24f;
