@@ -13,7 +13,7 @@ namespace NeosModSettings
     {
         public override string Name => "NeosModSettings";
         public override string Author => "badhaloninja";
-        public override string Version => "1.0.0-alpha";
+        public override string Version => "1.1.0";
         public override string Link => "https://github.com/badhaloninja/NeosModSettings";
 
 
@@ -25,16 +25,16 @@ namespace NeosModSettings
 
         [AutoRegisterConfigKey]
         private readonly ModConfigurationKey<Key> TEST_KEYENUM = new ModConfigurationKey<Key>("testKeyEnum", "Test Key Enum", () => Key.None);
-        /* Newtonsoft.Json does not like these types
-                [AutoRegisterConfigKey]
-                private readonly ModConfigurationKey<int4> TEST_INTMATRIX = new ModConfigurationKey<int4>("testIntMatrix", "Test int4", () => new int4(12), valueValidator: (value) => value.x == 12);
 
-                [AutoRegisterConfigKey]
-                private readonly ModConfigurationKey<float3x3> TEST_float3x3 = new ModConfigurationKey<float3x3>("testFloat3x3", "Test float3x3", () => float3x3.Identity);
+        [AutoRegisterConfigKey]
+        private readonly ModConfigurationKey<int4> TEST_INTMATRIX = new ModConfigurationKey<int4>("testIntMatrix", "Test int4", () => new int4(12), valueValidator: (value) => value.x == 12);
 
-                [AutoRegisterConfigKey]
-                private readonly ModConfigurationKey<color> TEST_COLOR = new ModConfigurationKey<color>("testColor", "Test Color", () => color.Blue);
-        */
+        [AutoRegisterConfigKey]
+        private readonly ModConfigurationKey<float3x3> TEST_float3x3 = new ModConfigurationKey<float3x3>("testFloat3x3", "Test float3x3", () => float3x3.Identity);
+
+        [AutoRegisterConfigKey]
+        private readonly ModConfigurationKey<color> TEST_COLOR = new ModConfigurationKey<color>("testColor", "Test Color", () => color.Blue);
+
         [AutoRegisterConfigKey]
         private readonly ModConfigurationKey<Type> TEST_TYPE = new ModConfigurationKey<Type>("testType", "Test Type", () => typeof(Button));
 
@@ -299,7 +299,7 @@ namespace NeosModSettings
                     button.SetupValueToggle(dVar.Value, modKey, selected, deselected);
                 }
 
-                Msg($"{configuredModList.Count} found mods with configs");
+                Debug($"{configuredModList.Count} found mods with configs");
 
 
 
@@ -384,16 +384,15 @@ namespace NeosModSettings
                 if (!DynamicValueVariable<T>.IsValidGenericType) return; // Check if supported type
 
                 ui.Style.MinHeight = 24f;
-                Slot root = ui.Empty("ConfigElement");
-                ui.NestInto(root);
 
                 if (typeof(T).IsMatrixType())
                 { // If it is a matrix adjust the height of the field accordingly
                     int2 matrixDimensions = typeof(T).GetMatrixDimensions();
-                    ui.Style.MinHeight = (float)(matrixDimensions.y * 24 + (matrixDimensions.y - 1) * 4);
+                    ui.Style.MinHeight = matrixDimensions.y * 24 + (matrixDimensions.y - 1) * 4;
                 }
 
-
+                Slot root = ui.Empty("ConfigElement");
+                ui.NestInto(root);
 
                 var dynvar = root.AttachComponent<DynamicValueVariable<T>>();
                 dynvar.VariableName.Value = $"Config/{ModName}.{key.Name}";
@@ -411,15 +410,24 @@ namespace NeosModSettings
                         Debug($"Failed Validation for {dynvar.VariableName.Value}");
                         // Writing to the variable here breaks the editor
                         // Also you wouldn't want you are typing to be reset while typing it
+                        if (!optionsRoot.LocalUser.IsDirectlyInteracting())
+                        { // Reset value here if failed validation when not using text editor, via the clear button for strings for example
+                            syncF.World.RunInUpdates(1, () =>
+                            { // Give OnReset time to unblock the field
+                                dynvar.Value.Value = isSet ? configValue : Coder<T>.Default; // Set to old value if is set Else set to default for that value
+                            });
+                        }
                         return; // Skip updating config
                     }
 
                     config.Set(key, syncF.Value, "NeosModSettings variable change");
                 };
 
-                string varName = (String.IsNullOrWhiteSpace(key.Description)) ? key.Name : key.Description; // If key's description is empty use it's name instead
+                string varName = string.IsNullOrWhiteSpace(key.Description) ? key.Name : key.Description; // If key's description is empty use it's name instead
 
                 RadiantUI_Constants.SetupDefaultStyle(ui);
+
+
                 ui.Style.TextAutoSizeMax = 20f;
                 ui.HorizontalElementWithLabel<Component>(varName, 0.7f, () =>
                 {// Using HorizontalElementWithLabel because it formats nicer than SyncMemberEditorBuilder with text
@@ -457,7 +465,7 @@ namespace NeosModSettings
                             if (!key.Validate(dynvar.Value.Value))
                             { // Fallback if validation fails
                                 Debug($"Failed Validation for {dynvar.VariableName.Value}");
-                                dynvar.Value.Value = (isSet) ? (T)configValue : Coder<T>.Default; // Set to old value if is set Else set to default for that value
+                                dynvar.Value.Value = isSet ? (T)configValue : Coder<T>.Default; // Set to old value if is set Else set to default for that value
                                 return;
                             }
                         };
@@ -519,7 +527,7 @@ namespace NeosModSettings
                     config.Set(key, syncF.Value, "NeosModSettings variable change");
                 };
 
-                string varName = (String.IsNullOrWhiteSpace(key.Description)) ? key.Name : key.Description; // If key's description is empty use it's name instead
+                string varName = string.IsNullOrWhiteSpace(key.Description) ? key.Name : key.Description; // If key's description is empty use it's name instead
 
                 RadiantUI_Constants.SetupDefaultStyle(ui);
                 ui.Style.TextAutoSizeMax = 20f;
@@ -543,7 +551,7 @@ namespace NeosModSettings
                             if (!key.Validate(typeField.Type.Value))
                             { // Fallback if validation fails
                                 Debug($"Failed Validation for {dynvar.VariableName.Value}");
-                                typeField.Type.Value = (isSet) ? configValue : null; // Set to old value if is set Else set to default for that value
+                                typeField.Type.Value = isSet ? configValue : null; // Set to old value if is set Else set to default for that value
                                 return;
                             }
                         };
@@ -613,7 +621,7 @@ namespace NeosModSettings
             private static void saveCurrentConfig(IButton button, ButtonEventData data)
             {
                 button.Slot.TryReadDynamicValue("Config/SelectedMod", out string selectedMod);
-                if (String.IsNullOrWhiteSpace(selectedMod) || !configuredModList.TryGetValue(selectedMod, out NeosModBase mod) || mod == null)
+                if (string.IsNullOrWhiteSpace(selectedMod) || !configuredModList.TryGetValue(selectedMod, out NeosModBase mod) || mod == null)
                     return;
 
                 button.LabelText = "Saving"; // Saves so fast this might be unnecessary 
@@ -645,7 +653,7 @@ namespace NeosModSettings
             private static void resetCurrentConfig(IButton button, ButtonEventData data)
             {
                 button.Slot.TryReadDynamicValue("Config/SelectedMod", out string selectedMod);
-                if (String.IsNullOrWhiteSpace(selectedMod) || !configuredModList.TryGetValue(selectedMod, out NeosModBase mod) || mod == null)
+                if (string.IsNullOrWhiteSpace(selectedMod) || !configuredModList.TryGetValue(selectedMod, out NeosModBase mod) || mod == null)
                     return;
                 var config = mod.GetConfiguration();
 
@@ -655,7 +663,7 @@ namespace NeosModSettings
                     config.Unset(key);
 
                     // Get default type
-                    object value = (key.TryComputeDefault(out object defaultValue)) ?
+                    object value = key.TryComputeDefault(out object defaultValue) ?
                         defaultValue :
                         typeof(Coder<>).MakeGenericType(key.ValueType()).GetProperty("Default").GetValue(null); // Feel free do to a pull request at any time *:*)
 
@@ -670,12 +678,19 @@ namespace NeosModSettings
 
         private void OnConfigurationChanged(ConfigurationChangedEvent @event)
         {
+            if (@event.Label == "NeosModSettings variable change") return;
             Debug($"ConfigurationChangedEvent fired for mod \"{@event.Config.Owner.Name}\" Config \"{@event.Key.Name}\"");
             if (optionsRoot == null) return; // Skip if options root hasn't been generated yet
 
             if (!@event.Config.TryGetValue(@event.Key, out object value)) return; // Skip if failed to get the value
 
             string modName = $"{@event.Config.Owner.Author}.{@event.Config.Owner.Name}";
+
+            if (optionsRoot.World.ConnectorManager.CanCurrentThreadModify) // Check if current thread can interact with data model
+            { // Try to update config field
+                optionsRoot.TryWriteDynamicValueOfType(@event.Key.ValueType(), $"Config/{modName}.{@event.Key.Name}", value);
+                return;
+            }
             optionsRoot.RunSynchronously(() => // Move to thread that can interact with data model
             { // Try to update config field
                 optionsRoot.TryWriteDynamicValueOfType(@event.Key.ValueType(), $"Config/{modName}.{@event.Key.Name}", value);
