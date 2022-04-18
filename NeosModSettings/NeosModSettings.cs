@@ -383,6 +383,11 @@ namespace NeosModSettings
                 Debug($"GenerateConfigField for type ${nameof(T)} is valid: ${DynamicValueVariable<T>.IsValidGenericType}");
                 if (!DynamicValueVariable<T>.IsValidGenericType) return; // Check if supported type
 
+                if (ui.Root.ChildrenCount != 0)
+                {
+                    ui.HorizontalSpacer(2f, color.White * 0.3f);
+                }
+
                 ui.Style.MinHeight = 24f;
 
                 if (typeof(T).IsMatrixType())
@@ -495,6 +500,12 @@ namespace NeosModSettings
                *
                */
                 Debug($"GenerateConfigField for type Type");
+
+
+                if (ui.Root.ChildrenCount != 0)
+                {
+                    ui.HorizontalSpacer(2f, color.White * 0.3f);
+                }
 
                 ui.Style.MinHeight = 24f;
                 Slot root = ui.Empty("ConfigElement");

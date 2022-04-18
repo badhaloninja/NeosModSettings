@@ -77,5 +77,30 @@ namespace NeosModSettings
 			
 			return (bool)genMethod.Invoke(null, args);
 		}
+
+
+		public static RectTransform HorizontalSpacer(this UIBuilder ui, float size, color color)
+		{
+			float minWidth = ui.Style.MinWidth;
+			float preferredWidth = ui.Style.PreferredWidth;
+			float flexibleWidth = ui.Style.FlexibleWidth;
+			float minHeight = ui.Style.MinHeight;
+			float preferredHeight = ui.Style.PreferredHeight;
+			float flexibleHeight = ui.Style.FlexibleHeight;
+			ui.Style.Width = -1;
+			ui.Style.Height = size;
+			ui.Style.FlexibleHeight = -1f;
+			ui.Style.FlexibleWidth = -1f;
+			ui.NestInto(ui.Empty("Spacer"));
+			ui.Image(color);
+			ui.NestOut();
+			ui.Style.MinWidth = minWidth;
+			ui.Style.PreferredWidth = preferredWidth;
+			ui.Style.FlexibleWidth = flexibleWidth;
+			ui.Style.MinHeight = minHeight;
+			ui.Style.PreferredHeight = preferredHeight;
+			ui.Style.FlexibleHeight = flexibleHeight;
+			return ui.CurrentRect;
+		}
 	}
 }
