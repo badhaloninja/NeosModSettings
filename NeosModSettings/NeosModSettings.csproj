@@ -50,6 +50,7 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="INmsMod.cs" />
     <Compile Include="NeosModSettings.cs" />
     <Compile Include="NMSExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -16,6 +16,8 @@ namespace NeosModSettings
         public override string Version => "1.1.0";
         public override string Link => "https://github.com/badhaloninja/NeosModSettings";
 
+        [AutoRegisterConfigKey]
+        private static readonly ModConfigurationKey<bool> showAllMods = new ModConfigurationKey<bool>("showAllMods", "Show all mods", () => false);
 
         [AutoRegisterConfigKey]
         private readonly ModConfigurationKey<bool> TEST_BOOL = new ModConfigurationKey<bool>("testBool", "Test Boolean", () => true);
@@ -43,10 +45,14 @@ namespace NeosModSettings
         private static Slot optionsRoot;
 
         private static NeosModSettings Current; // To easily get the overriden fields of this mod
+        private static ModConfiguration thisConfig;
 
         public override void OnEngineInit()
         {
             Current = this;
+            thisConfig = GetConfiguration();
+
+            thisConfig.OnThisConfigurationChanged += HandleThisConfigChanged;
             ModConfiguration.OnAnyConfigurationChanged += OnConfigurationChanged;
 
             Harmony harmony = new Harmony("me.badhaloninja.NeosModSettings");
@@ -200,6 +206,12 @@ namespace NeosModSettings
                 var selectedModVar = screenSlot.AttachComponent<DynamicValueVariable<string>>();
                 selectedModVar.VariableName.Value = "Config/SelectedMod";
                 selectedModVar.Value.OnValueChange += generateConfigItems; // Regen Config items on change
+
+
+
+                var showAllModsVar = screenSlot.AttachComponent<DynamicValueVariable<bool>>();
+                showAllModsVar.VariableName.Value = "Config/ShowAllMods";
+                showAllModsVar.Value.Value = thisConfig.GetValue(showAllMods);
             }
 
             private static void buildNMSInfo(UIBuilder ui, out RectTransform content)
@@ -264,7 +276,7 @@ namespace NeosModSettings
             {
                 List<NeosModBase> mods = new List<NeosModBase>(ModLoader.Mods());
                 List<NeosModBase> configuredMods = mods
-                    .Where(m => m.GetConfiguration() != null) // Get all mods with configs
+                    .Where(m => m.GetConfiguration() != null || m as INmsMod != null) // Get all mods with configs
                     .ToList();
 
 
@@ -276,12 +288,16 @@ namespace NeosModSettings
                 bool flag = configuredModList.Count == 0;
                 foreach (NeosModBase mod in configuredMods)
                 {
-                    int configCount = mod.GetConfiguration().ConfigurationItemDefinitions
-                        .Where(c => !c.InternalAccessOnly)
-                        .ToList()
-                        .Count;
-                    Debug($"{mod.Name} has {configCount} available config items");
-                    if (configCount == 0) continue; // Skip if it only has InternalAccessOnly definitions
+                    if(mod as INmsMod == null)
+                    {
+                        int configCount = mod.GetConfiguration().ConfigurationItemDefinitions
+                            .Where(c => !c.InternalAccessOnly)
+                            .ToList()
+                            .Count;
+                        Debug($"{mod.Name} has {configCount} available config items");
+                        if (configCount == 0) continue; // Skip if it only has InternalAccessOnly definitions
+                    }
+                    
 
                     string modKey = $"{mod.Author}.{mod.Name}";
 
@@ -352,17 +368,24 @@ namespace NeosModSettings
                 ui.Spacer(32f);*/
                 ui.Style.PreferredHeight = 24f;
 
+
                 ModConfiguration config = mod.GetConfiguration();
 
-                foreach (ModConfigurationKey key in config.ConfigurationItemDefinitions)
-                { // Generate field for every supported config
-                    if (key.InternalAccessOnly) continue; // Skip internal keys
-                    generateConfigFieldOfType(key.ValueType(), ui, syncField.Value, config, key);
+                if (config != null)
+                {
+                    foreach (ModConfigurationKey key in config.ConfigurationItemDefinitions)
+                    { // Generate field for every supported config
+                        if (key.InternalAccessOnly) continue; // Skip internal keys
+                        generateConfigFieldOfType(key.ValueType(), ui, syncField.Value, config, key);
+                    }
                 }
+                
 
 
+                if (mod as INmsMod == null) return;
+                INmsMod nmsMod = mod as INmsMod;
 
-
+                nmsMod.buildConfigUI(ui, optionsRoot);
             }
             public static void generateConfigFieldOfType(Type type, UIBuilder ui, string ModName, ModConfiguration config, ModConfigurationKey key)
             { // Generics go brr
@@ -674,7 +697,14 @@ namespace NeosModSettings
 
 
 
-
+        private void HandleThisConfigChanged(ConfigurationChangedEvent @event)
+        {
+            if(@event.Key == showAllMods)
+            {
+                Msg("showAllMods Changed");
+                optionsRoot.TryWriteDynamicValue("Config/ShowAllMods", thisConfig.GetValue(showAllMods));
+            }
+        }
 
         private void OnConfigurationChanged(ConfigurationChangedEvent @event)
         {
