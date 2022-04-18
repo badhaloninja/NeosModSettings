@@ -217,7 +217,7 @@ namespace NeosModSettings
 
                 ui.Spacer(45f);
                 ui.Style.PreferredHeight = 250f;
-                string Desc = "NeosModSettings is a modifcation to the base game that allows the users to directly interact with the mods that they have installed onto their game from inside the application.\n\nCurrently only supports configs that are valid DynamicValueVariable types and those of type Type meaning <b>Arrays are not supported</b> <size=30%>including any other collections</size>\n\n<b><color=#d33>This is a pre-release</color></b>";
+                string Desc = "NeosModSettings is a modifcation to the base game that allows the users to directly interact with the mods that they have installed onto their game from inside the application.\n\nCurrently only supports configs that are valid DynamicValueVariable types and those of type Type meaning <b>Arrays are not supported</b> <size=30%>including any other collections</size>";
                 ui.Text(Desc, alignment: Alignment.MiddleCenter);
 
 
