@@ -45,6 +45,9 @@ namespace NeosModSettings
         private readonly ModConfigurationKey<Type> TEST_TYPE = new ModConfigurationKey<Type>("testType", "Test Type", () => typeof(Button));
 
         [AutoRegisterConfigKey]
+        private readonly ModConfigurationKey<Uri> TEST_URI = new ModConfigurationKey<Uri>("testUri", "Test Uri", () => null);
+
+        [AutoRegisterConfigKey]
         private readonly ModConfigurationKey<Uri> TEST_INTERNAL = new ModConfigurationKey<Uri>("testInternal", "Test internal access only key, must be http or https", () => new Uri("https://example.com"), true, (uri)=>uri.Scheme == "https" || uri.Scheme == "http");
 
         private static Dictionary<string, NeosModBase> configuredModList = new Dictionary<string, NeosModBase>();
@@ -419,7 +422,7 @@ namespace NeosModSettings
                     var typedKey = key as ModConfigurationKey<T>;
 
                     bool isSet = config.TryGetValue(typedKey, out T configValue);
-                    if (isSet && configValue.Equals(syncF.Value)) return; // Skip if new value is equal to old
+                    if (isSet && configValue != null && configValue.Equals(syncF.Value)) return; // Skip if new value is equal to old
 
                     if (!key.Validate(syncF.Value))
                     { // Fallback if validation fails
