@@ -422,7 +422,7 @@ namespace NeosModSettings
                     var typedKey = key as ModConfigurationKey<T>;
 
                     bool isSet = config.TryGetValue(typedKey, out T configValue);
-                    if (isSet && configValue != null && configValue.Equals(syncF.Value)) return; // Skip if new value is equal to old
+                    if (isSet && Object.Equals(configValue, syncF.Value)) return; // Skip if new value is equal to old
 
                     if (!key.Validate(syncF.Value))
                     { // Fallback if validation fails
@@ -439,7 +439,7 @@ namespace NeosModSettings
                         return; // Skip updating config
                     }
 
-                    config.Set(key, syncF.Value, "NeosModSettings variable change");
+                    config.Set(typedKey, syncF.Value, "NeosModSettings variable change");
                 };
 
                 string varName = "";
