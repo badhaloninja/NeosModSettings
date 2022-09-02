@@ -5,6 +5,12 @@
       "executablePath": "$(NeosPath)Neos.exe",
       "commandLineArgs": "-Screen -Invisible -LoadAssembly \"Libraries/NeosModLoader.dll\" -DontAutoOpenCloudHome -Config Config.json",
       "workingDirectory": "$(NeosPath)"
+    },
+    "Launch Neos in VR": {
+      "commandName": "Executable",
+      "executablePath": "$(NeosPath)Neos.exe",
+      "commandLineArgs": "-Invisible -LoadAssembly \"Libraries/NeosModLoader.dll\" -DontAutoOpenCloudHome -Config Config.json",
+      "workingDirectory": "$(NeosPath)"
     }
   }
 }
