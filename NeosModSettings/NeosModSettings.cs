@@ -13,15 +13,15 @@ namespace NeosModSettings
     {
         public override string Name => "NeosModSettings";
         public override string Author => "badhaloninja";
-        public override string Version => "1.2.0";
+        public override string Version => "1.2.1";
         public override string Link => "https://github.com/badhaloninja/NeosModSettings";
 
         [AutoRegisterConfigKey]
         private readonly ModConfigurationKey<float> ITEM_HEIGHT = new ModConfigurationKey<float>("itemHeight", "Determines height of config items like this one. You need to click on another page for it to apply.", () => 24);
         [AutoRegisterConfigKey]
-        private readonly ModConfigurationKey<bool> SHOW_INTERNAL = new ModConfigurationKey<bool>("showInternal", "Wether to show internal use only config options, their text will be yellow.", () => false);
+        private readonly ModConfigurationKey<bool> SHOW_INTERNAL = new ModConfigurationKey<bool>("showInternal", "Whether to show internal use only config options, their text will be yellow.", () => false);
         [AutoRegisterConfigKey]
-        private readonly ModConfigurationKey<bool> SHOW_NAMES = new ModConfigurationKey<bool>("showNames", "Wether to show the internal key names next to descriptions.", () => false);
+        private readonly ModConfigurationKey<bool> SHOW_NAMES = new ModConfigurationKey<bool>("showNames", "Whether to show the internal key names next to descriptions.", () => false);
 
         [AutoRegisterConfigKey]
         private readonly ModConfigurationKey<bool> TEST_BOOL = new ModConfigurationKey<bool>("testBool", "Test Boolean", () => true);
