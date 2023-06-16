@@ -422,7 +422,8 @@ namespace NeosModSettings
                     var typedKey = key as ModConfigurationKey<T>;
 
                     bool isSet = config.TryGetValue(typedKey, out T configValue);
-                    if (isSet && Object.Equals(configValue, syncF.Value)) return; // Skip if new value is equal to old
+                    bool wasModified = !configValue.Equals(syncF.Value) && syncF.Value.Equals(syncF.Value);
+                    if (isSet && !wasModified) return; // Skip if new value is unmodified or is logically inconsistent (self != self)
 
                     if (!key.Validate(syncF.Value))
                     { // Fallback if validation fails
