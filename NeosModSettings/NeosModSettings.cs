@@ -442,24 +442,21 @@ namespace NeosModSettings
                     config.Set(typedKey, syncF.Value, "NeosModSettings variable change");
                 };
 
-                string varName = "";
-                if (String.IsNullOrWhiteSpace(key.Description))
+                bool nameAsKey = String.IsNullOrWhiteSpace(key.Description);
+                string localeText = nameAsKey ? key.Name : key.Description;
+                string format = "{0}";
+                if (Current.GetConfiguration().GetValue(Current.SHOW_NAMES) && !nameAsKey)
                 {
-                    varName = key.Name;
+                    format = $"<i><b>{key.Name}</i></b> - " + "{0}";
                 }
-                else
-                {
-                    if (Current.GetConfiguration().GetValue(Current.SHOW_NAMES))
-                        varName += $"<i><b>{key.Name}</i></b> - ";
-                    varName += key.Description;
-                }
-                if (key.InternalAccessOnly) varName = $"<color=#dec15b>{varName}</color>";
+
+                if (key.InternalAccessOnly) format = $"<color=#dec15b>{format}</color>";
 
                 RadiantUI_Constants.SetupDefaultStyle(ui);
 
-
                 ui.Style.TextAutoSizeMax = Current.GetConfiguration().GetValue(Current.ITEM_HEIGHT);
-                ui.HorizontalElementWithLabel<Component>(varName, 0.7f, () =>
+                var localized = new LocaleString(localeText, format, true, true, null);
+                ui.HorizontalElementWithLabel<Component>(localized, 0.7f, () =>
                 {// Using HorizontalElementWithLabel because it formats nicer than SyncMemberEditorBuilder with text
                     SyncMemberEditorBuilder.Build(dynvar.Value, null, dynvar.GetSyncMemberFieldInfo(4), ui); // Using null for name makes it skip generating text
                     // Can't recolor fields because PrimitiveMemeberEditor sets the colors on changes
