@@ -76,6 +76,33 @@ namespace NeosModSettings
 			object[] args = new object[] { root, name, value };
 			
 			return (bool)genMethod.Invoke(null, args);
-		}
-	}
+        }
+
+
+
+        public static void SyncWriteDynamicValue<T>(this Slot root, string name, T value)
+        {
+            if (root.World.ConnectorManager.CanCurrentThreadModify) // Check if current thread can interact with data model
+            { // Try to update config field
+                root.TryWriteDynamicValue(name, value);
+                return;
+            }
+            root.RunSynchronously(() => // Move to thread that can interact with data model
+            { // Try to update config field
+                root.TryWriteDynamicValue(name, value);
+            });
+        }
+        public static void SyncWriteDynamicValueType(this Slot root, Type type, string name, object value)
+		{
+            if (root.World.ConnectorManager.CanCurrentThreadModify) // Check if current thread can interact with data model
+            { // Try to update config field
+                root.TryWriteDynamicValueOfType(type, name, value);
+                return;
+            }
+            root.RunSynchronously(() => // Move to thread that can interact with data model
+            { // Try to update config field
+                root.TryWriteDynamicValueOfType(type, name, value);
+            });
+        }
+    }
 }

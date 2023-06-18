@@ -6,14 +6,16 @@ using NeosModLoader;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace NeosModSettings
 {
+    // Maybe consider to split into a partial class
     public class NeosModSettings : NeosMod
     {
         public override string Name => "NeosModSettings";
         public override string Author => "badhaloninja";
-        public override string Version => "1.2.1";
+        public override string Version => "1.3.0";
         public override string Link => "https://github.com/badhaloninja/NeosModSettings";
 
         [AutoRegisterConfigKey]
@@ -22,46 +24,50 @@ namespace NeosModSettings
         private readonly ModConfigurationKey<bool> SHOW_INTERNAL = new ModConfigurationKey<bool>("showInternal", "Whether to show internal use only config options, their text will be yellow.", () => false);
         [AutoRegisterConfigKey]
         private readonly ModConfigurationKey<bool> SHOW_NAMES = new ModConfigurationKey<bool>("showNames", "Whether to show the internal key names next to descriptions.", () => false);
-
         [AutoRegisterConfigKey]
-        private readonly ModConfigurationKey<bool> TEST_BOOL = new ModConfigurationKey<bool>("testBool", "Test Boolean", () => true);
-
+        private readonly ModConfigurationKey<bool> HIGHLIGHT_ITEMS = new ModConfigurationKey<bool>("highlightAlternateItems", "Highlight alternate configuration items", () => false);
         [AutoRegisterConfigKey]
-        private readonly ModConfigurationKey<string> TEST_STRING = new ModConfigurationKey<string>("testStr", "Test String", () => "Value");
-
+        private readonly ModConfigurationKey<color> HIGHLIGHT_TINT = new ModConfigurationKey<color>("highlightColor", "Highlight color", () => color.White.SetA(0.2f));
         [AutoRegisterConfigKey]
-        private readonly ModConfigurationKey<Key> TEST_KEYENUM = new ModConfigurationKey<Key>("testKeyEnum", "Test Key Enum", () => Key.None);
+        private readonly ModConfigurationKey<bool> RESET_INTERNAL = new ModConfigurationKey<bool>("resetInternal", "Also reset internal use only config options, <b>Can cause unintended behavior</b>", () => false);
 
-        [AutoRegisterConfigKey]
-        private readonly ModConfigurationKey<int4> TEST_INTVECTOR = new ModConfigurationKey<int4>("testIntVector", "Test int4", () => new int4(12), valueValidator: (value) => value.x == 12);
 
-        [AutoRegisterConfigKey]
-        private readonly ModConfigurationKey<float3x3> TEST_float3x3 = new ModConfigurationKey<float3x3>("testFloat3x3", "Test float3x3", () => float3x3.Identity);
-
-        [AutoRegisterConfigKey]
-        private readonly ModConfigurationKey<color> TEST_COLOR = new ModConfigurationKey<color>("testColor", "Test Color", () => color.Blue);
-
-        [AutoRegisterConfigKey]
-        private readonly ModConfigurationKey<Type> TEST_TYPE = new ModConfigurationKey<Type>("testType", "Test Type", () => typeof(Button));
-
-        [AutoRegisterConfigKey]
-        private readonly ModConfigurationKey<Uri> TEST_URI = new ModConfigurationKey<Uri>("testUri", "Test Uri", () => null);
-
-        [AutoRegisterConfigKey]
-        private readonly ModConfigurationKey<Uri> TEST_INTERNAL = new ModConfigurationKey<Uri>("testInternal", "Test internal access only key, must be http or https", () => new Uri("https://example.com"), true, (uri)=>uri.Scheme == "https" || uri.Scheme == "http");
-
-        private static Dictionary<string, NeosModBase> configuredModList = new Dictionary<string, NeosModBase>();
-
-        private static Slot optionsRoot;
-
-        private static Slot modsRoot;
+        // Test Variables
+            [AutoRegisterConfigKey] // Huh dummy can be used as a spacer, neat
+            private readonly ModConfigurationKey<dummy> TEST_DUMMY = new ModConfigurationKey<dummy>("dummy", "---------------------------------------------------------------------------------------------------------------------------------");
+            [AutoRegisterConfigKey]
+            private readonly ModConfigurationKey<bool> TEST_BOOL = new ModConfigurationKey<bool>("testBool", "Test Boolean", () => true);
+            [AutoRegisterConfigKey]
+            private readonly ModConfigurationKey<string> TEST_STRING = new ModConfigurationKey<string>("testStr", "Test String", () => "Value");
+            [AutoRegisterConfigKey]
+            private readonly ModConfigurationKey<Key> TEST_KEYENUM = new ModConfigurationKey<Key>("testKeyEnum", "Test Key Enum", () => Key.None);
+            [AutoRegisterConfigKey]
+            private readonly ModConfigurationKey<int4> TEST_INTVECTOR = new ModConfigurationKey<int4>("testIntVector", "Test int4", () => new int4(12), valueValidator: (value) => value.x == 12);
+            [AutoRegisterConfigKey]
+            private readonly ModConfigurationKey<float3x3> TEST_float3x3 = new ModConfigurationKey<float3x3>("testFloat3x3", "Test float3x3", () => float3x3.Identity);
+            [AutoRegisterConfigKey]
+            private readonly ModConfigurationKey<color> TEST_COLOR = new ModConfigurationKey<color>("testColor", "Test Color", () => color.Blue);
+            [AutoRegisterConfigKey]
+            private readonly ModConfigurationKey<Type> TEST_TYPE = new ModConfigurationKey<Type>("testType", "Test Type", () => typeof(Button));
+            [AutoRegisterConfigKey]
+            private readonly ModConfigurationKey<Uri> TEST_URI = new ModConfigurationKey<Uri>("testUri", "Test Uri", () => null);
+            [AutoRegisterConfigKey]
+            private readonly ModConfigurationKey<Uri> TEST_INTERNAL = new ModConfigurationKey<Uri>("testInternal", "Test internal access only key, must be http or https", () => new Uri("https://example.com"), true, (uri)=>uri.Scheme == "https" || uri.Scheme == "http");
+        //
 
         private static NeosModSettings Current; // To easily get the overriden fields of this mod
+        private static readonly Dictionary<string, NeosModBase> configuredModList = new Dictionary<string, NeosModBase>();
+
+        private static Slot optionsRoot;
+        private static Slot modsRoot;
+
+        private static MethodInfo fireConfigurationChangedEvent;
 
         public override void OnEngineInit()
         {
             Current = this;
             ModConfiguration.OnAnyConfigurationChanged += OnConfigurationChanged;
+            GetConfiguration().OnThisConfigurationChanged += OnThisConfigurationChanged;
 
             Harmony harmony = new Harmony("me.badhaloninja.NeosModSettings");
             harmony.PatchAll();
@@ -78,9 +84,8 @@ namespace NeosModSettings
                 RadiantDash componentInParents = __instance.Slot.GetComponentInParents<RadiantDash>();
 
                 RadiantDashScreen radiantDashScreen = componentInParents.AttachScreen("NML", color.Orange, NeosAssets.Graphics.Icons.Dash.Tools);
-                generateNMLScreen(radiantDashScreen);
+                GenerateNMLScreen(radiantDashScreen);
             }
-
             [HarmonyPostfix]
             [HarmonyPatch("OnLoading")]
             public static void OnLoading(UserspaceScreensManager __instance)
@@ -89,10 +94,10 @@ namespace NeosModSettings
                 RadiantDash componentInParents = __instance.Slot.GetComponentInParents<RadiantDash>();
 
                 RadiantDashScreen radiantDashScreen = componentInParents.AttachScreen("NML", color.Orange, NeosAssets.Graphics.Icons.Dash.Tools);
-                generateNMLScreen(radiantDashScreen);
+                GenerateNMLScreen(radiantDashScreen);
             }
 
-            private static void generateNMLScreen(RadiantDashScreen radiantDashScreen)
+            private static void GenerateNMLScreen(RadiantDashScreen radiantDashScreen)
             {
                 Slot screenSlot = radiantDashScreen.Slot;
                 screenSlot.OrderOffset = 70; // Settings Screen is 60, Exit screen is set to int.MaxValue 
@@ -113,7 +118,7 @@ namespace NeosModSettings
                 ui.HorizontalFooter(56f, out RectTransform modsFooter, out RectTransform modsContent);
                 ui.NestInto(modsFooter);
                 var saveAllBtn = ui.Button("Save All");
-                saveAllBtn.LocalPressed += saveAllConfigs;
+                saveAllBtn.LocalPressed += SaveAllConfigs;
 
                 // List Mods
                 ui.NestInto(modsContent);
@@ -129,7 +134,7 @@ namespace NeosModSettings
                 // Config Panel
                 ui.NestInto(right);
 
-                buildNMSInfo(ui, out RectTransform configUiRoot); // Shows when no mod is selected
+                BuildNMSInfo(ui, out RectTransform configUiRoot); // Shows when no mod is selected
 
                 ui.NestInto(configUiRoot);
                 var splitList = ui.SplitVertically(96f, 884f, 100f);
@@ -199,22 +204,32 @@ namespace NeosModSettings
                 ui.Style.PreferredHeight = 24f;
                 var saveCurrentBtn = ui.Button("Save Settings");
                 saveCurrentBtn.RequireLockInToPress.Value = true; // So you can scroll with laser without worrying about pressing it
-                saveCurrentBtn.LocalPressed += saveCurrentConfig;
+                saveCurrentBtn.LocalPressed += SaveCurrentConfig;
 
                 var defaultsBtn = ui.Button("Reset Default Settings");
+                var defaultsBtnLabelDrive = defaultsBtn.Label.Slot.AttachComponent<BooleanValueDriver<string>>();
+                defaultsBtnLabelDrive.FalseValue.Value = "Reset Default Settings";
+                defaultsBtnLabelDrive.TrueValue.Value = "Reset Default Settings  <size=90%><color=#c44>Including Internal</color></size>";
+
+                defaultsBtnLabelDrive.State.SyncWithVariable("Config/_includeInternal");
+                defaultsBtnLabelDrive.TargetField.TryLink(defaultsBtn.LabelTextField);
+
                 defaultsBtn.RequireLockInToPress.Value = true; // So you can scroll with laser without worrying about pressing it
-                defaultsBtn.LocalReleased += resetCurrentConfig;
+                defaultsBtn.LocalReleased += ResetCurrentConfig;
 
 
                 var space = screenSlot.AttachComponent<DynamicVariableSpace>();
                 space.SpaceName.Value = "Config";
+                
+                var highlightColor = screenSlot.AttachComponent<DynamicValueVariable<color>>();
+                highlightColor.VariableName.Value = "Config/_highlightTint";
+                highlightColor.Value.Value = Current.GetConfiguration().GetValue(Current.HIGHLIGHT_TINT);
 
                 var selectedModVar = screenSlot.AttachComponent<DynamicValueVariable<string>>();
                 selectedModVar.VariableName.Value = "Config/SelectedMod";
-                selectedModVar.Value.OnValueChange += generateConfigItems; // Regen Config items on change
+                selectedModVar.Value.OnValueChange += GenerateConfigItems; // Regen Config items on change
             }
-
-            private static void buildNMSInfo(UIBuilder ui, out RectTransform content)
+            private static void BuildNMSInfo(UIBuilder ui, out RectTransform content)
             {
                 Slot descRoot = ui.Next("Info"); // New Slot for the NeosModSettings info
                 ui.Nest();
@@ -345,12 +360,21 @@ namespace NeosModSettings
                 };*/
             }
 
-
-
-
-            private static void generateConfigItems(SyncField<string> syncField)
+            public static void GenerateConfigItems(SyncField<string> syncField = null)
             {
                 optionsRoot.DestroyChildren(); // Clear configs
+
+                string SelectedMod;
+                if(syncField != null)
+                {
+                    SelectedMod = syncField.Value;
+                }
+                else
+                {
+                    optionsRoot.TryReadDynamicValue("Config/SelectedMod", out SelectedMod);
+                }
+                
+
 
                 // Reset footer
                 optionsRoot.TryWriteDynamicValue("Config/SelectedMod.Name", "");
@@ -358,7 +382,7 @@ namespace NeosModSettings
                 optionsRoot.TryWriteDynamicValue("Config/SelectedMod.Version", "");
                 optionsRoot.TryWriteDynamicValue<Uri>("Config/SelectedMod.Uri", null);
 
-                if (String.IsNullOrWhiteSpace(syncField.Value) || !configuredModList.TryGetValue(syncField.Value, out NeosModBase mod) || mod == null)
+                if (String.IsNullOrWhiteSpace(SelectedMod) || !configuredModList.TryGetValue(SelectedMod, out NeosModBase mod) || mod == null)
                     return; // Skip if no mod is selected
 
                 // Set footer values
@@ -380,29 +404,49 @@ namespace NeosModSettings
 
                 ModConfiguration config = mod.GetConfiguration();
 
+
+                var i = 0;
                 foreach (ModConfigurationKey key in config.ConfigurationItemDefinitions)
                 { // Generate field for every supported config
                     if (!Current.GetConfiguration().GetValue(Current.SHOW_INTERNAL) && key.InternalAccessOnly) continue; // Skip internal keys sometimes
-                    generateConfigFieldOfType(key.ValueType(), ui, syncField.Value, config, key);
+                    var item = GenerateConfigFieldOfType(key.ValueType(), ui, SelectedMod, config, key);
+                    if(item == null) continue;
+
+
+                    item.ForeachComponentInChildren<Button>(button => button.RequireLockInToPress.Value = true);
+
+
+
+                    if (!Current.GetConfiguration().GetValue(Current.HIGHLIGHT_ITEMS)) continue;
+                    if (i % 2 == 1)
+                    {
+                        var bg = item.AddSlot("Background");
+                        bg.OrderOffset = -1;
+                        var rect = bg.AttachComponent<RectTransform>();
+                        rect.AnchorMin.Value = new float2(-0.005f, 0f);
+                        rect.AnchorMax.Value = new float2(1.005f, 1f);
+                        bg.AttachComponent<Image>().Tint.DriveFromVariable("Config/_highlightTint");
+                    }
+                    i++;
                 }
             }
-            public static void generateConfigFieldOfType(Type type, UIBuilder ui, string ModName, ModConfiguration config, ModConfigurationKey key)
+
+            public static Slot GenerateConfigFieldOfType(Type type, UIBuilder ui, string ModName, ModConfiguration config, ModConfigurationKey key)
             { // Generics go brr
                 if (type == typeof(Type))
                 {
-                    generateConfigTypeField(ui, ModName, config, key);
-                    return;
+                    return GenerateConfigTypeField(ui, ModName, config, key);
                 }
 
-                var method = typeof(ModSettingsScreen).GetMethod(nameof(generateConfigField)); // Get MethodInfo 
+                var method = typeof(ModSettingsScreen).GetMethod(nameof(GenerateConfigField)); // Get MethodInfo 
                 var genMethod = method.MakeGenericMethod(type); // Convert to whatever type requested
                 object[] args = new object[] { ui, ModName, config, key }; // Pass the arguments
-                genMethod.Invoke(null, args); // Run the method
-                return;
+                
+                return (Slot)genMethod.Invoke(null, args); // Run the method
             }
-            public static void generateConfigField<T>(UIBuilder ui, string ModName, ModConfiguration config, ModConfigurationKey key)
+            public static Slot GenerateConfigField<T>(UIBuilder ui, string ModName, ModConfiguration config, ModConfigurationKey key)
             {
-                if (!DynamicValueVariable<T>.IsValidGenericType) return; // Check if supported type
+                if (!DynamicValueVariable<T>.IsValidGenericType) return null; // Check if supported type
 
                 ui.Style.MinHeight = Current.GetConfiguration().GetValue(Current.ITEM_HEIGHT);
                 if (typeof(T).IsMatrixType())
@@ -462,7 +506,6 @@ namespace NeosModSettings
                     SyncMemberEditorBuilder.Build(dynvar.Value, null, dynvar.GetSyncMemberFieldInfo(4), ui); // Using null for name makes it skip generating text
                     // Can't recolor fields because PrimitiveMemeberEditor sets the colors on changes
 
-
                     // This is horrid, I have given up trying to get it to work in the dynvar on changed event
                     // And because of matrixes there can be multiple memberEditors
                     // Lambdas all the way down!
@@ -499,7 +542,6 @@ namespace NeosModSettings
                         };
                     });
 
-
                     ui.Root.ForeachComponentInChildren<Text>((text) =>
                     { // Make value path text readable
                         // XYZW, RGBA, etc.
@@ -507,15 +549,15 @@ namespace NeosModSettings
                         text.Color.Value = RadiantUI_Constants.TEXT_COLOR;
                     });
 
-
                     return null; // HorizontalElementWithLabel requires a return type that implements a component
                 });
 
                 ui.Style.MinHeight = -1f;
                 ui.NestOut();
-            }
 
-            public static void generateConfigTypeField(UIBuilder ui, string ModName, ModConfiguration config, ModConfigurationKey key)
+                return root;
+            }
+            public static Slot GenerateConfigTypeField(UIBuilder ui, string ModName, ModConfiguration config, ModConfigurationKey key)
             { /* *:* )
                * I wanted these field generation functions to be more dynamic and not have to have a separate one just for type Type
                * but I am just too tired bc of current events
@@ -555,22 +597,21 @@ namespace NeosModSettings
                     config.Set(key, syncF.Value, "NeosModSettings variable change");
                 };
 
-                string varName = "";
-                if (String.IsNullOrWhiteSpace(key.Description))
+                bool nameAsKey = String.IsNullOrWhiteSpace(key.Description);
+                string localeText = nameAsKey ? key.Name : key.Description;
+                string format = "{0}";
+                if (Current.GetConfiguration().GetValue(Current.SHOW_NAMES) && !nameAsKey)
                 {
-                    varName = key.Name;
+                    format = $"<i><b>{key.Name}</i></b> - " + "{0}";
                 }
-                else
-                {
-                    if (Current.GetConfiguration().GetValue(Current.SHOW_NAMES))
-                        varName += $"<i><b>{key.Name}</i></b> - ";
-                    varName += key.Description;
-                }
-                if (key.InternalAccessOnly) varName = $"<color=#dec15b>{varName}</color>";
+
+                if (key.InternalAccessOnly) format = $"<color=#dec15b>{format}</color>";
 
                 RadiantUI_Constants.SetupDefaultStyle(ui);
+
                 ui.Style.TextAutoSizeMax = Current.GetConfiguration().GetValue(Current.ITEM_HEIGHT);
-                ui.HorizontalElementWithLabel<Component>(varName, 0.7f, () =>
+                var localized = new LocaleString(localeText, format, true, true, null);
+                ui.HorizontalElementWithLabel<Component>(localized, 0.7f, () =>
                 {// Using HorizontalElementWithLabel because it formats nicer than SyncMemberEditorBuilder with text
                     SyncMemberEditorBuilder.Build(typeField.Type, null, dynvar.GetSyncMemberFieldInfo(4), ui); // Using null for name makes it skip generating text
                     // Can't recolor fields because PrimitiveMemeberEditor sets the colors on changes
@@ -610,9 +651,12 @@ namespace NeosModSettings
 
                 ui.Style.MinHeight = -1f;
                 ui.NestOut();
+
+                return root;
             }
 
-            private static int saveAllConfigs()
+
+            private static int SaveAllConfigs()
             {
                 Debug("Save All Configs");
                 int errCount = 0;
@@ -632,13 +676,11 @@ namespace NeosModSettings
                 }
                 return errCount;
             }
-
-
-            private static void saveAllConfigs(IButton button, ButtonEventData data)
+            private static void SaveAllConfigs(IButton button, ButtonEventData data)
             {
                 button.LabelText = "Saving"; // Saves so fast this might be unnecessary 
 
-                var errCount = saveAllConfigs();
+                var errCount = SaveAllConfigs();
 
                 if (errCount == 0)
                 { // Show Saved! for 1 second
@@ -656,8 +698,7 @@ namespace NeosModSettings
                     button.LabelText = "Save All";
                 });
             }
-
-            private static void saveCurrentConfig(IButton button, ButtonEventData data)
+            private static void SaveCurrentConfig(IButton button, ButtonEventData data)
             {
                 button.Slot.TryReadDynamicValue("Config/SelectedMod", out string selectedMod);
                 if (string.IsNullOrWhiteSpace(selectedMod) || !configuredModList.TryGetValue(selectedMod, out NeosModBase mod) || mod == null)
@@ -687,36 +728,53 @@ namespace NeosModSettings
                 }
             }
 
-
-
-            private static void resetCurrentConfig(IButton button, ButtonEventData data)
+            private static void ResetCurrentConfig(IButton button, ButtonEventData data)
             {
                 button.Slot.TryReadDynamicValue("Config/SelectedMod", out string selectedMod);
                 if (string.IsNullOrWhiteSpace(selectedMod) || !configuredModList.TryGetValue(selectedMod, out NeosModBase mod) || mod == null)
                     return;
                 var config = mod.GetConfiguration();
 
+                // Incase you are resetting NMS config
+                bool resetInternal = Current.GetConfiguration().GetValue(Current.RESET_INTERNAL);
                 foreach (ModConfigurationKey key in config.ConfigurationItemDefinitions)
                 { // Generate field for every supported config
-                    if (!Current.GetConfiguration().GetValue(Current.SHOW_INTERNAL) && key.InternalAccessOnly) continue;
-                    
+                    if (!resetInternal && key.InternalAccessOnly) continue;
+
+
                     config.Unset(key);
+                    if(fireConfigurationChangedEvent == null) {
+                        // Private method moment :(
+                        fireConfigurationChangedEvent = AccessTools.Method(typeof(ModConfiguration), "FireConfigurationChangedEvent");
+                    }
+                    // Unset does not trigger the config changed event
+                    fireConfigurationChangedEvent.Invoke(config, new object[] { key, "NeosModSettings reset" });
 
                     // Get default type
-                    object value = key.TryComputeDefault(out object defaultValue) ?
-                        defaultValue :
-                        typeof(Coder<>).MakeGenericType(key.ValueType()).GetProperty("Default").GetValue(null); // Feel free do to a pull request at any time *:*)
+                    object value = key.TryComputeDefault(out object defaultValue) ? defaultValue : key.ValueType().GetDefaultValue(); // How did I miss this extension??
+                        //typeof(Coder<>).MakeGenericType(key.ValueType()).GetProperty("Default").GetValue(null); // Feel free do to a pull request at any time *:*)
 
                     optionsRoot.TryWriteDynamicValueOfType(key.ValueType(), $"Config/{selectedMod}.{key.Name}", value);
                 }
             }
         }
+
+
         private void OnConfigurationChanged(ConfigurationChangedEvent @event)
         {
             if (@event.Label == "NeosModSettings variable change") return;
             Debug($"ConfigurationChangedEvent fired for mod \"{@event.Config.Owner.Name}\" Config \"{@event.Key.Name}\"");
             if (optionsRoot == null) return; // Skip if options root hasn't been generated yet
-            if(@event.Key == SHOW_INTERNAL && modsRoot != null)
+            
+
+            if (!@event.Config.TryGetValue(@event.Key, out object value)) return; // Skip if failed to get the value
+            string modName = $"{@event.Config.Owner.Author}.{@event.Config.Owner.Name}";
+            optionsRoot.SyncWriteDynamicValueType(@event.Key.ValueType(), $"Config/{modName}.{@event.Key.Name}", value);
+        }
+        private void OnThisConfigurationChanged(ConfigurationChangedEvent @event)
+        {
+            if (optionsRoot == null) return; // Skip if options root hasn't been generated yet
+            if (@event.Key == SHOW_INTERNAL && modsRoot != null)
             {
                 // we need to regenerate mod buttons in case there is a mod with ONLY internal keys
                 var ui = new UIBuilder(modsRoot);
@@ -724,19 +782,14 @@ namespace NeosModSettings
                 ModSettingsScreen.GenerateModButtons(ui);
             }
 
-            if (!@event.Config.TryGetValue(@event.Key, out object value)) return; // Skip if failed to get the value
-
-            string modName = $"{@event.Config.Owner.Author}.{@event.Config.Owner.Name}";
-
-            if (optionsRoot.World.ConnectorManager.CanCurrentThreadModify) // Check if current thread can interact with data model
-            { // Try to update config field
-                optionsRoot.TryWriteDynamicValueOfType(@event.Key.ValueType(), $"Config/{modName}.{@event.Key.Name}", value);
-                return;
+            if (@event.Key == RESET_INTERNAL)
+            {
+                optionsRoot.SyncWriteDynamicValue("Config/_includeInternal", @event.Config.GetValue(RESET_INTERNAL));
             }
-            optionsRoot.RunSynchronously(() => // Move to thread that can interact with data model
-            { // Try to update config field
-                optionsRoot.TryWriteDynamicValueOfType(@event.Key.ValueType(), $"Config/{modName}.{@event.Key.Name}", value);
-            });
+            if (@event.Key == HIGHLIGHT_TINT)
+            {
+                optionsRoot.SyncWriteDynamicValue("Config/_highlightTint", @event.Config.GetValue(HIGHLIGHT_TINT));
+            }
         }
     }
 }
