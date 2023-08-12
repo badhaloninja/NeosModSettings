@@ -53,6 +53,8 @@ namespace NeosModSettings
             private readonly ModConfigurationKey<Uri> TEST_URI = new ModConfigurationKey<Uri>("testUri", "Test Uri", () => null);
             [AutoRegisterConfigKey]
             private readonly ModConfigurationKey<Uri> TEST_INTERNAL = new ModConfigurationKey<Uri>("testInternal", "Test internal access only key, must be http or https", () => new Uri("https://example.com"), true, (uri)=>uri.Scheme == "https" || uri.Scheme == "http");
+            [AutoRegisterConfigKey]
+            private readonly ModConfigurationKey<float2x2> TEST_NAN_VECTOR_INTERNAL = new ModConfigurationKey<float2x2>("testNanVectorInternal", "Test internal access only NaN Vector for pr #11", () => new float2x2(float.NaN, float.NaN, float.NaN, float.NaN), true);
         //
 
         private static NeosModSettings Current; // To easily get the overriden fields of this mod
@@ -466,8 +468,7 @@ namespace NeosModSettings
                     var typedKey = key as ModConfigurationKey<T>;
 
                     bool isSet = config.TryGetValue(typedKey, out T configValue);
-                    bool wasModified = !configValue.Equals(syncF.Value) && syncF.Value.Equals(syncF.Value);
-                    if (isSet && !wasModified) return; // Skip if new value is unmodified or is logically inconsistent (self != self)
+                    if (isSet && (Object.Equals(configValue, syncF.Value) || !Object.Equals(syncF.Value, syncF.Value))) return; // Skip if new value is unmodified or is logically inconsistent (self != self)
 
                     if (!key.Validate(syncF.Value))
                     { // Fallback if validation fails
@@ -487,7 +488,7 @@ namespace NeosModSettings
                     config.Set(typedKey, syncF.Value, "NeosModSettings variable change");
                 };
 
-                bool nameAsKey = String.IsNullOrWhiteSpace(key.Description);
+                bool nameAsKey = string.IsNullOrWhiteSpace(key.Description);
                 string localeText = nameAsKey ? key.Name : key.Description;
                 string format = "{0}";
                 if (Current.GetConfiguration().GetValue(Current.SHOW_NAMES) && !nameAsKey)
@@ -584,7 +585,7 @@ namespace NeosModSettings
                 { // Update config
 
                     bool isSet = config.TryGetValue(typedKey, out Type configValue);
-                    if (isSet && configValue.Equals(syncF.Value)) return; // Skip if new value is equal to old
+                    if (isSet && Object.Equals(configValue, syncF.Value)) return; // Skip if new value is equal to old
 
                     if (!key.Validate(syncF.Value))
                     { // Fallback if validation fails
@@ -597,7 +598,7 @@ namespace NeosModSettings
                     config.Set(key, syncF.Value, "NeosModSettings variable change");
                 };
 
-                bool nameAsKey = String.IsNullOrWhiteSpace(key.Description);
+                bool nameAsKey = string.IsNullOrWhiteSpace(key.Description);
                 string localeText = nameAsKey ? key.Name : key.Description;
                 string format = "{0}";
                 if (Current.GetConfiguration().GetValue(Current.SHOW_NAMES) && !nameAsKey)
