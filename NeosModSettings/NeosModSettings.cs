@@ -19,45 +19,48 @@ namespace NeosModSettings
         public override string Link => "https://github.com/badhaloninja/NeosModSettings";
 
         [AutoRegisterConfigKey]
-        private readonly ModConfigurationKey<float> ITEM_HEIGHT = new ModConfigurationKey<float>("itemHeight", "Determines height of config items like this one. You need to click on another page for it to apply.", () => 24);
+        private static readonly ModConfigurationKey<float> ITEM_HEIGHT = new ModConfigurationKey<float>("itemHeight", "Determines height of config items like this one. You need to click on another page for it to apply.", () => 24);
         [AutoRegisterConfigKey]
-        private readonly ModConfigurationKey<bool> SHOW_INTERNAL = new ModConfigurationKey<bool>("showInternal", "Whether to show internal use only config options, their text will be yellow.", () => false);
+        private static readonly ModConfigurationKey<bool> SHOW_INTERNAL = new ModConfigurationKey<bool>("showInternal", "Whether to show internal use only config options, their text will be yellow.", () => false);
         [AutoRegisterConfigKey]
-        private readonly ModConfigurationKey<bool> SHOW_NAMES = new ModConfigurationKey<bool>("showNames", "Whether to show the internal key names next to descriptions.", () => false);
+        private static readonly ModConfigurationKey<bool> SHOW_NAMES = new ModConfigurationKey<bool>("showNames", "Whether to show the internal key names next to descriptions.", () => false);
         [AutoRegisterConfigKey]
-        private readonly ModConfigurationKey<bool> HIGHLIGHT_ITEMS = new ModConfigurationKey<bool>("highlightAlternateItems", "Highlight alternate configuration items", () => false);
+        private static readonly ModConfigurationKey<bool> HIGHLIGHT_ITEMS = new ModConfigurationKey<bool>("highlightAlternateItems", "Highlight alternate configuration items", () => false);
         [AutoRegisterConfigKey]
-        private readonly ModConfigurationKey<color> HIGHLIGHT_TINT = new ModConfigurationKey<color>("highlightColor", "Highlight color", () => color.White.SetA(0.2f));
+        private static readonly ModConfigurationKey<color> HIGHLIGHT_TINT = new ModConfigurationKey<color>("highlightColor", "Highlight color", () => color.White.SetA(0.2f));
         [AutoRegisterConfigKey]
-        private readonly ModConfigurationKey<bool> RESET_INTERNAL = new ModConfigurationKey<bool>("resetInternal", "Also reset internal use only config options, <b>Can cause unintended behavior</b>", () => false);
+        private static readonly ModConfigurationKey<bool> RESET_INTERNAL = new ModConfigurationKey<bool>("resetInternal", "Also reset internal use only config options, <b>Can cause unintended behavior</b>", () => false);
 
 
         // Test Variables
+#pragma warning disable IDE0052 // Remove unread private members
             [AutoRegisterConfigKey] // Huh dummy can be used as a spacer, neat
-            private readonly ModConfigurationKey<dummy> TEST_DUMMY = new ModConfigurationKey<dummy>("dummy", "---------------------------------------------------------------------------------------------------------------------------------");
+            private static readonly ModConfigurationKey<dummy> TEST_DUMMY = new ModConfigurationKey<dummy>("dummy", "---------------------------------------------------------------------------------------------------------------------------------");
             [AutoRegisterConfigKey]
-            private readonly ModConfigurationKey<bool> TEST_BOOL = new ModConfigurationKey<bool>("testBool", "Test Boolean", () => true);
+            private static readonly ModConfigurationKey<bool> TEST_BOOL = new ModConfigurationKey<bool>("testBool", "Test Boolean", () => true);
             [AutoRegisterConfigKey]
-            private readonly ModConfigurationKey<string> TEST_STRING = new ModConfigurationKey<string>("testStr", "Test String", () => "Value");
+            private static readonly ModConfigurationKey<string> TEST_STRING = new ModConfigurationKey<string>("testStr", "Test String", () => "Value");
             [AutoRegisterConfigKey]
-            private readonly ModConfigurationKey<Key> TEST_KEYENUM = new ModConfigurationKey<Key>("testKeyEnum", "Test Key Enum", () => Key.None);
+            private static readonly ModConfigurationKey<Key> TEST_KEYENUM = new ModConfigurationKey<Key>("testKeyEnum", "Test Key Enum", () => Key.None);
             [AutoRegisterConfigKey]
-            private readonly ModConfigurationKey<int4> TEST_INTVECTOR = new ModConfigurationKey<int4>("testIntVector", "Test int4", () => new int4(12), valueValidator: (value) => value.x == 12);
+            private static readonly ModConfigurationKey<int4> TEST_INTVECTOR = new ModConfigurationKey<int4>("testIntVector", "Test int4", () => new int4(12), valueValidator: (value) => value.x == 12);
             [AutoRegisterConfigKey]
-            private readonly ModConfigurationKey<float3x3> TEST_float3x3 = new ModConfigurationKey<float3x3>("testFloat3x3", "Test float3x3", () => float3x3.Identity);
+            private static readonly ModConfigurationKey<float3x3> TEST_float3x3 = new ModConfigurationKey<float3x3>("testFloat3x3", "Test float3x3", () => float3x3.Identity);
             [AutoRegisterConfigKey]
-            private readonly ModConfigurationKey<color> TEST_COLOR = new ModConfigurationKey<color>("testColor", "Test Color", () => color.Blue);
+            private static readonly ModConfigurationKey<color> TEST_COLOR = new ModConfigurationKey<color>("testColor", "Test Color", () => color.Blue);
             [AutoRegisterConfigKey]
-            private readonly ModConfigurationKey<Type> TEST_TYPE = new ModConfigurationKey<Type>("testType", "Test Type", () => typeof(Button));
+            private static readonly ModConfigurationKey<Type> TEST_TYPE = new ModConfigurationKey<Type>("testType", "Test Type", () => typeof(Button));
             [AutoRegisterConfigKey]
-            private readonly ModConfigurationKey<Uri> TEST_URI = new ModConfigurationKey<Uri>("testUri", "Test Uri", () => null);
+            private static readonly ModConfigurationKey<Uri> TEST_URI = new ModConfigurationKey<Uri>("testUri", "Test Uri", () => null);
             [AutoRegisterConfigKey]
-            private readonly ModConfigurationKey<Uri> TEST_INTERNAL = new ModConfigurationKey<Uri>("testInternal", "Test internal access only key, must be http or https", () => new Uri("https://example.com"), true, (uri)=>uri.Scheme == "https" || uri.Scheme == "http");
+            private static readonly ModConfigurationKey<Uri> TEST_INTERNAL = new ModConfigurationKey<Uri>("testInternal", "Test internal access only key, must be http or https", () => new Uri("https://example.com"), true, (uri)=>uri.Scheme == "https" || uri.Scheme == "http");
             [AutoRegisterConfigKey]
-            private readonly ModConfigurationKey<float2x2> TEST_NAN_VECTOR_INTERNAL = new ModConfigurationKey<float2x2>("testNanVectorInternal", "Test internal access only NaN Vector for pr #11", () => new float2x2(float.NaN, float.NaN, float.NaN, float.NaN), true);
+            private static readonly ModConfigurationKey<float2x2> TEST_NAN_VECTOR_INTERNAL = new ModConfigurationKey<float2x2>("testNanVectorInternal", "Test internal access only NaN Vector for pr #11", () => new float2x2(float.NaN, float.NaN, float.NaN, float.NaN), true);
+#pragma warning restore IDE0052
         //
 
-        private static NeosModSettings Current; // To easily get the overriden fields of this mod
+        private static NeosModSettings Current;
+        private static ModConfiguration Config;
         private static RadiantDashScreen CurrentScreen;
         private static readonly Dictionary<string, NeosModBase> configuredModList = new Dictionary<string, NeosModBase>();
 
@@ -69,8 +72,9 @@ namespace NeosModSettings
         public override void OnEngineInit()
         {
             Current = this;
+            Config = GetConfiguration();
             ModConfiguration.OnAnyConfigurationChanged += OnConfigurationChanged;
-            GetConfiguration().OnThisConfigurationChanged += OnThisConfigurationChanged;
+            Config.OnThisConfigurationChanged += OnThisConfigurationChanged;
 
             Harmony harmony = new Harmony("me.badhaloninja.NeosModSettings");
             harmony.PatchAll();
@@ -221,7 +225,7 @@ namespace NeosModSettings
                 
                 var highlightColor = screenSlot.AttachComponent<DynamicValueVariable<color>>();
                 highlightColor.VariableName.Value = "Config/_highlightTint";
-                highlightColor.Value.Value = Current.GetConfiguration().GetValue(Current.HIGHLIGHT_TINT);
+                highlightColor.Value.Value = Config.GetValue(HIGHLIGHT_TINT);
 
                 var selectedModVar = screenSlot.AttachComponent<DynamicValueVariable<string>>();
                 selectedModVar.VariableName.Value = "Config/SelectedMod";
@@ -301,12 +305,10 @@ namespace NeosModSettings
                     dVar.VariableName.Value = "Config/SelectedMod";
                 }
                 bool flag = configuredModList.Count == 0;
-                var config = Current.GetConfiguration();
                 foreach (NeosModBase mod in configuredMods)
                 {
-
                     int configCount = mod.GetConfiguration().ConfigurationItemDefinitions
-                        .Where(c => (config.GetValue(Current.SHOW_INTERNAL) || !c.InternalAccessOnly) &&
+                        .Where(c => (Config.GetValue(SHOW_INTERNAL) || !c.InternalAccessOnly) &&
                                     // check whether config item can be displayed
                                     (
                                         c.ValueType() == typeof(Type) ||
@@ -406,7 +408,7 @@ namespace NeosModSettings
                 var i = 0;
                 foreach (ModConfigurationKey key in config.ConfigurationItemDefinitions)
                 { // Generate field for every supported config
-                    if (!Current.GetConfiguration().GetValue(Current.SHOW_INTERNAL) && key.InternalAccessOnly) continue; // Skip internal keys sometimes
+                    if (!Config.GetValue(SHOW_INTERNAL) && key.InternalAccessOnly) continue; // Skip internal keys sometimes
                     var item = GenerateConfigFieldOfType(key.ValueType(), ui, SelectedMod, config, key);
                     if(item == null) continue;
 
@@ -415,7 +417,7 @@ namespace NeosModSettings
 
 
 
-                    if (!Current.GetConfiguration().GetValue(Current.HIGHLIGHT_ITEMS)) continue;
+                    if (!Config.GetValue(HIGHLIGHT_ITEMS)) continue;
                     if (i % 2 == 1)
                     {
                         var bg = item.AddSlot("Background");
@@ -446,7 +448,7 @@ namespace NeosModSettings
             {
                 if (!DynamicValueVariable<T>.IsValidGenericType) return null; // Check if supported type
 
-                ui.Style.MinHeight = Current.GetConfiguration().GetValue(Current.ITEM_HEIGHT);
+                ui.Style.MinHeight = Config.GetValue(ITEM_HEIGHT);
                 if (typeof(T).IsMatrixType())
                 { // If it is a matrix adjust the height of the field 
                     int2 matrixDimensions = typeof(T).GetMatrixDimensions();
@@ -487,7 +489,7 @@ namespace NeosModSettings
                 bool nameAsKey = string.IsNullOrWhiteSpace(key.Description);
                 string localeText = nameAsKey ? key.Name : key.Description;
                 string format = "{0}";
-                if (Current.GetConfiguration().GetValue(Current.SHOW_NAMES) && !nameAsKey)
+                if (Config.GetValue(SHOW_NAMES) && !nameAsKey)
                 {
                     format = $"<i><b>{key.Name}</i></b> - " + "{0}";
                 }
@@ -496,7 +498,7 @@ namespace NeosModSettings
 
                 RadiantUI_Constants.SetupDefaultStyle(ui);
 
-                ui.Style.TextAutoSizeMax = Current.GetConfiguration().GetValue(Current.ITEM_HEIGHT);
+                ui.Style.TextAutoSizeMax = Config.GetValue(ITEM_HEIGHT);
                 var localized = new LocaleString(localeText, format, true, true, null);
                 ui.HorizontalElementWithLabel<Component>(localized, 0.7f, () =>
                 {// Using HorizontalElementWithLabel because it formats nicer than SyncMemberEditorBuilder with text
@@ -563,7 +565,7 @@ namespace NeosModSettings
                */
                 Debug($"GenerateConfigField for type Type");
 
-                ui.Style.MinHeight = Current.GetConfiguration().GetValue(Current.ITEM_HEIGHT);
+                ui.Style.MinHeight = Config.GetValue(ITEM_HEIGHT);
                 Slot root = ui.Empty("ConfigElement");
                 ui.NestInto(root);
 
@@ -597,7 +599,7 @@ namespace NeosModSettings
                 bool nameAsKey = string.IsNullOrWhiteSpace(key.Description);
                 string localeText = nameAsKey ? key.Name : key.Description;
                 string format = "{0}";
-                if (Current.GetConfiguration().GetValue(Current.SHOW_NAMES) && !nameAsKey)
+                if (Config.GetValue(SHOW_NAMES) && !nameAsKey)
                 {
                     format = $"<i><b>{key.Name}</i></b> - " + "{0}";
                 }
@@ -606,7 +608,7 @@ namespace NeosModSettings
 
                 RadiantUI_Constants.SetupDefaultStyle(ui);
 
-                ui.Style.TextAutoSizeMax = Current.GetConfiguration().GetValue(Current.ITEM_HEIGHT);
+                ui.Style.TextAutoSizeMax = Config.GetValue(ITEM_HEIGHT);
                 var localized = new LocaleString(localeText, format, true, true, null);
                 ui.HorizontalElementWithLabel<Component>(localized, 0.7f, () =>
                 {// Using HorizontalElementWithLabel because it formats nicer than SyncMemberEditorBuilder with text
@@ -733,7 +735,7 @@ namespace NeosModSettings
                 var config = mod.GetConfiguration();
 
                 // Incase you are resetting NMS config
-                bool resetInternal = Current.GetConfiguration().GetValue(Current.RESET_INTERNAL);
+                bool resetInternal = Config.GetValue(RESET_INTERNAL);
                 foreach (ModConfigurationKey key in config.ConfigurationItemDefinitions)
                 { // Generate field for every supported config
                     if (!resetInternal && key.InternalAccessOnly) continue;
