@@ -94,7 +94,9 @@ namespace NeosModSettings
 
             private static void GenerateModSettingsScreen(UserspaceScreensManager __instance)
             {
-                if (__instance.World != Userspace.UserspaceWorld || CurrentScreen != null) return;
+                bool screenExists = CurrentScreen != null && !CurrentScreen.IsRemoved;
+                if (__instance.World != Userspace.UserspaceWorld || screenExists) return;
+
                 RadiantDash dash = __instance.Slot.GetComponentInParents<RadiantDash>();
 
                 //if (dash.GetScreen<RadiantDashScreen>(screen => screen.Name == "NML") != null) return;
