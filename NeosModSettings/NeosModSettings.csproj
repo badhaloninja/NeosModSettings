@@ -40,6 +40,9 @@
       <HintPath>$(NeosPath)NeosModLoader.dll</HintPath>
       <HintPath>$(NeosPath)Libraries\NeosModLoader.dll</HintPath>
     </Reference>
+	  <Reference Include="System.Memory">
+		  <HintPath>$(NeosPath)Neos_Data\Managed\System.Memory.dll</HintPath>
+	  </Reference>
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(CopyToMods)'=='true'">

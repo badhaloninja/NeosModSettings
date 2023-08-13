@@ -35,7 +35,7 @@ namespace NeosModSettings
 
 			DynamicVariableSpace dynamicVariableSpace = root.FindSpace(spaceName);
 			if (dynamicVariableSpace == null) return false;
-			return dynamicVariableSpace.TryWriteValue<T>(text, value);
+			return dynamicVariableSpace.TryWriteValue(text, value);
 		}
 		public static bool TryWriteDynamicType(this Slot root, string name, Type value)
 		{
@@ -62,7 +62,7 @@ namespace NeosModSettings
 
 			DynamicVariableSpace dynamicVariableSpace = root.FindSpace(spaceName);
 			if (dynamicVariableSpace == null) return false;
-			return dynamicVariableSpace.TryReadValue<T>(text, out value);
+			return dynamicVariableSpace.TryReadValue(text, out value);
 		}
 
 
@@ -103,6 +103,14 @@ namespace NeosModSettings
             { // Try to update config field
                 root.TryWriteDynamicValueOfType(type, name, value);
             });
+        }
+
+
+		public static void InitializeVariable<T>(this Slot root, string name, T value)
+		{
+            var variable = root.AttachComponent<DynamicValueVariable<T>>();
+            variable.VariableName.Value = name;
+            variable.Value.Value = value;
         }
     }
 }

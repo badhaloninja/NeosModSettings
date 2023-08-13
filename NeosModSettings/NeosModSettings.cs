@@ -1,4 +1,4 @@
-using FrooxEngine;
+﻿using FrooxEngine;
 using FrooxEngine.UIX;
 using BaseX;
 using HarmonyLib;
@@ -30,6 +30,8 @@ namespace NeosModSettings
         private static readonly ModConfigurationKey<color> HIGHLIGHT_TINT = new ModConfigurationKey<color>("highlightColor", "Highlight color", () => color.White.SetA(0.2f));
         [AutoRegisterConfigKey]
         private static readonly ModConfigurationKey<bool> RESET_INTERNAL = new ModConfigurationKey<bool>("resetInternal", "Also reset internal use only config options, <b>Can cause unintended behavior</b>", () => false);
+        [AutoRegisterConfigKey]
+        private static readonly ModConfigurationKey<bool> PER_KEY_RESET = new ModConfigurationKey<bool>("showPerKeyResetButtons", "Show reset buttons for each config key", () => false);
 
 
         // Test Variables
@@ -76,7 +78,18 @@ namespace NeosModSettings
         private static Slot optionsRoot;
         private static Slot modsRoot;
 
-        private static MethodInfo fireConfigurationChangedEvent;
+        private static readonly MethodInfo generateConfigFieldT = typeof(ModSettingsScreen).GetMethod(nameof(ModSettingsScreen.GenerateConfigField));
+        private static readonly MethodInfo fireConfigurationChangedEvent = typeof(ModConfiguration).GetMethod("FireConfigurationChangedEvent", BindingFlags.NonPublic | BindingFlags.Instance);
+
+
+        private static readonly Dictionary<ModConfigurationKey, string> ConfigKeyVariableNames = new Dictionary<ModConfigurationKey, string> {
+            { SHOW_NAMES, "Config/_showFullName" },
+            { SHOW_INTERNAL, "Config/_showInternal" },
+            { RESET_INTERNAL, "Config/_resetInternal" },
+            { PER_KEY_RESET, "Config/_showResetButtons" },
+            { HIGHLIGHT_ITEMS, "Config/_highlightKeys" },
+            { HIGHLIGHT_TINT, "Config/_highlightTint" }
+        };
 
         public override void OnEngineInit()
         {
@@ -208,6 +221,11 @@ namespace NeosModSettings
                 //
 
 
+                optionsRoot.InitializeVariable(ConfigKeyVariableNames[SHOW_NAMES], Config.GetValue(SHOW_NAMES));
+                optionsRoot.InitializeVariable(ConfigKeyVariableNames[SHOW_INTERNAL], Config.GetValue(SHOW_INTERNAL));
+                optionsRoot.InitializeVariable(ConfigKeyVariableNames[PER_KEY_RESET], Config.GetValue(PER_KEY_RESET));
+                optionsRoot.InitializeVariable(ConfigKeyVariableNames[HIGHLIGHT_TINT], Config.GetValue(HIGHLIGHT_TINT));
+                optionsRoot.InitializeVariable(ConfigKeyVariableNames[HIGHLIGHT_ITEMS], Config.GetValue(HIGHLIGHT_ITEMS));
 
                 // Controls
                 ui.NestOut();
@@ -224,7 +242,7 @@ namespace NeosModSettings
                 defaultsBtnLabelDrive.FalseValue.Value = "Reset Default Settings";
                 defaultsBtnLabelDrive.TrueValue.Value = "Reset Default Settings  <size=90%><color=#c44>Including Internal</color></size>";
 
-                defaultsBtnLabelDrive.State.SyncWithVariable("Config/_includeInternal");
+                defaultsBtnLabelDrive.State.SyncWithVariable(ConfigKeyVariableNames[RESET_INTERNAL]);
                 defaultsBtnLabelDrive.TargetField.TryLink(defaultsBtn.LabelTextField);
 
                 defaultsBtn.RequireLockInToPress.Value = true; // So you can scroll with laser without worrying about pressing it
@@ -233,14 +251,16 @@ namespace NeosModSettings
 
                 var space = screenSlot.AttachComponent<DynamicVariableSpace>();
                 space.SpaceName.Value = "Config";
-                
-                var highlightColor = screenSlot.AttachComponent<DynamicValueVariable<color>>();
-                highlightColor.VariableName.Value = "Config/_highlightTint";
-                highlightColor.Value.Value = Config.GetValue(HIGHLIGHT_TINT);
 
                 var selectedModVar = screenSlot.AttachComponent<DynamicValueVariable<string>>();
                 selectedModVar.VariableName.Value = "Config/SelectedMod";
-                selectedModVar.Value.OnValueChange += GenerateConfigItems; // Regen Config items on change
+                selectedModVar.Value.OnValueChange += (field) => {
+                    try
+                    {
+                        GenerateConfigItems(field.Value); // Regen Config items on change
+                    }
+                    catch (Exception e) { Error(e); }
+                };
             }
             private static void BuildInfoPage(UIBuilder ui, out RectTransform content)
             {
@@ -352,40 +372,15 @@ namespace NeosModSettings
                 }
 
                 Debug($"{configuredModList.Count} found mods with configs");
-
-
-
-                /*// Debug stuff, Remove this later
-                ui.Button("Open inspector").LocalPressed += (btn, be) =>
-                {
-                    Slot slot = btn.Slot.LocalUserSpace.AddSlot("Inspector", true);
-                    SceneInspector sceneInspector = slot.AttachComponent<SceneInspector>();
-                    sceneInspector.Root.Target = optionsRoot;
-
-                    //slot.PositionInFrontOfUser(float3.Backward); // This is what parents under the overlay manager apparently
-
-                    slot.LocalUser.GetPointInFrontOfUser(out float3 globalPosition, out floatQ globalRotation, float3.Backward, null, 0.7f, true);
-
-                    slot.GlobalPosition = globalPosition;
-                    slot.GlobalRotation = globalRotation;
-                };*/
             }
 
-            public static void GenerateConfigItems(SyncField<string> syncField = null)
+            public static void GenerateConfigItems(string SelectedMod = null)
             {
                 optionsRoot.DestroyChildren(); // Clear configs
 
-                string SelectedMod;
-                if(syncField != null)
-                {
-                    SelectedMod = syncField.Value;
-                }
-                else
-                {
+                if(SelectedMod == null)
                     optionsRoot.TryReadDynamicValue("Config/SelectedMod", out SelectedMod);
-                }
                 
-
 
                 // Reset footer
                 optionsRoot.TryWriteDynamicValue("Config/SelectedMod.Name", "");
@@ -393,7 +388,7 @@ namespace NeosModSettings
                 optionsRoot.TryWriteDynamicValue("Config/SelectedMod.Version", "");
                 optionsRoot.TryWriteDynamicValue<Uri>("Config/SelectedMod.Uri", null);
 
-                if (String.IsNullOrWhiteSpace(SelectedMod) || !configuredModList.TryGetValue(SelectedMod, out NeosModBase mod) || mod == null)
+                if (string.IsNullOrWhiteSpace(SelectedMod) || !configuredModList.TryGetValue(SelectedMod, out NeosModBase mod) || mod == null)
                     return; // Skip if no mod is selected
 
                 // Set footer values
@@ -411,15 +406,14 @@ namespace NeosModSettings
                 // Mod name at top of config
                 /*ui.Text(mod.Name);
                 ui.Spacer(32f);*/
-                ui.Style.PreferredHeight = 24f;
+                ui.Style.PreferredHeight = Config.GetValue(ITEM_HEIGHT);//24f;
 
                 ModConfiguration config = mod.GetConfiguration();
-
 
                 var i = 0;
                 foreach (ModConfigurationKey key in config.ConfigurationItemDefinitions)
                 { // Generate field for every supported config
-                    if (!Config.GetValue(SHOW_INTERNAL) && key.InternalAccessOnly) continue; // Skip internal keys sometimes
+                    if (!Config.GetValue(SHOW_INTERNAL) && key.InternalAccessOnly && config != Config) continue; // Skip internal keys sometimes
                     var item = GenerateConfigFieldOfType(key.ValueType(), ui, SelectedMod, config, key);
                     if(item == null) continue;
 
@@ -428,15 +422,18 @@ namespace NeosModSettings
 
 
 
-                    if (!Config.GetValue(HIGHLIGHT_ITEMS)) continue;
+                    if (!Config.GetValue(HIGHLIGHT_ITEMS) && config != Config) continue;
                     if (i % 2 == 1)
                     {
                         var bg = item.AddSlot("Background");
+                        bg.ActiveSelf_Field.DriveFromVariable(ConfigKeyVariableNames[HIGHLIGHT_ITEMS]);
+
                         bg.OrderOffset = -1;
                         var rect = bg.AttachComponent<RectTransform>();
+                        bg.AttachComponent<IgnoreLayout>();
                         rect.AnchorMin.Value = new float2(-0.005f, 0f);
                         rect.AnchorMax.Value = new float2(1.005f, 1f);
-                        bg.AttachComponent<Image>().Tint.DriveFromVariable("Config/_highlightTint");
+                        bg.AttachComponent<Image>().Tint.DriveFromVariable(ConfigKeyVariableNames[HIGHLIGHT_TINT]);
                     }
                     i++;
                 }
@@ -444,113 +441,112 @@ namespace NeosModSettings
 
             public static Slot GenerateConfigFieldOfType(Type type, UIBuilder ui, string ModName, ModConfiguration config, ModConfigurationKey key)
             { // Generics go brr
-                if (type == typeof(Type))
-                {
-                    return GenerateConfigTypeField(ui, ModName, config, key);
-                }
-
-                var method = typeof(ModSettingsScreen).GetMethod(nameof(GenerateConfigField)); // Get MethodInfo 
-                var genMethod = method.MakeGenericMethod(type); // Convert to whatever type requested
+                var genMethod = generateConfigFieldT.MakeGenericMethod(type); // Convert to whatever type requested
                 object[] args = new object[] { ui, ModName, config, key }; // Pass the arguments
                 
                 return (Slot)genMethod.Invoke(null, args); // Run the method
             }
             public static Slot GenerateConfigField<T>(UIBuilder ui, string ModName, ModConfiguration config, ModConfigurationKey key)
             {
-                if (!DynamicValueVariable<T>.IsValidGenericType) return null; // Check if supported type
+                bool isType = typeof(T) == typeof(Type);
+                if (!(isType || DynamicValueVariable<T>.IsValidGenericType)) return null; // Check if supported type
+
+                if (isType) Debug($"GenerateConfigField for type Type");
+
+                string configName = $"{ModName}.{key.Name}";
 
                 ui.Style.MinHeight = Config.GetValue(ITEM_HEIGHT);
                 if (typeof(T).IsMatrixType())
                 { // If it is a matrix adjust the height of the field 
                     int2 matrixDimensions = typeof(T).GetMatrixDimensions();
-                    ui.Style.MinHeight = Math.Max(ui.Style.MinHeight, matrixDimensions.y * 24 + (matrixDimensions.y - 1) * 4);
+                    ui.Style.MinHeight = Math.Max(ui.Style.MinHeight, matrixDimensions.y * Config.GetValue(ITEM_HEIGHT) + (matrixDimensions.y - 1) * 4);
                 }
                 Slot root = ui.Empty("ConfigElement");
+                if (key.InternalAccessOnly) root.ActiveSelf_Field.DriveFromVariable(ConfigKeyVariableNames[SHOW_INTERNAL]);
+
                 ui.NestInto(root);
 
-                var dynvar = root.AttachComponent<DynamicValueVariable<T>>();
-                dynvar.VariableName.Value = $"Config/{ModName}.{key.Name}";
+                SyncField<T> syncField;
+                FieldInfo fieldInfo;
 
-                dynvar.Value.Value = config.TryGetValue(key, out object cv) ? (T)cv : Coder<T>.Default; // Set initial value
-                dynvar.Value.OnValueChange += (syncF) => // Cursed solution, I know
-                { // Update config
-                    var typedKey = key as ModConfigurationKey<T>;
+                if (!isType)
+                {
+                    var dynvar = root.AttachComponent<DynamicValueVariable<T>>();
+                    dynvar.VariableName.Value = $"Config/{configName}";
 
-                    bool isSet = config.TryGetValue(typedKey, out T configValue);
-                    if (isSet && (Object.Equals(configValue, syncF.Value) || !Object.Equals(syncF.Value, syncF.Value))) return; // Skip if new value is unmodified or is logically inconsistent (self != self)
+                    syncField = dynvar.Value;
+                    fieldInfo = dynvar.GetSyncMemberFieldInfo(4);
+                } else
+                {
+                    var dynvar = root.AttachComponent<DynamicReferenceVariable<SyncType>>();
+                    dynvar.VariableName.Value = $"Config/{configName}";
 
-                    if (!key.Validate(syncF.Value))
-                    { // Fallback if validation fails
-                        Debug($"Failed Validation for {dynvar.VariableName.Value}");
-                        // Writing to the variable here breaks the editor
-                        // Also you wouldn't want you are typing to be reset while typing it
-                        if (!optionsRoot.LocalUser.IsDirectlyInteracting())
-                        { // Reset value here if failed validation when not using text editor, via the clear button for strings for example
-                            syncF.World.RunInUpdates(1, () =>
-                            { // Give OnReset time to unblock the field
-                                dynvar.Value.Value = isSet ? configValue : Coder<T>.Default; // Set to old value if is set Else set to default for that value
-                            });
+                    var typeField = root.AttachComponent<TypeField>();
+                    dynvar.Reference.TrySet(typeField.Type);
+
+                    syncField = typeField.Type as SyncField<T>;
+                    fieldInfo = typeField.GetSyncMemberFieldInfo(3);
+                }
+
+
+                var typedKey = key as ModConfigurationKey<T>;
+
+                
+                T defaultValue = default;
+                if (Coder<T>.IsSupported) defaultValue = Coder<T>.Default;
+
+                var initialValue = config.TryGetValue(key, out object currentValue) ? (T)currentValue : defaultValue; // Set initial value
+
+                syncField.Value = initialValue;
+                syncField.OnValueChange += (syncF) => HandleConfigFieldChange(syncF, config, typedKey);
+
+                // Validate the value changes
+                // LocalFilter changes the value passed to InternalSetValue
+                syncField.LocalFilter = (value, field) => ValidateConfigField(value, config, typedKey, defaultValue);
+
+
+                RadiantUI_Constants.SetupDefaultStyle(ui);
+                ui.Style.TextAutoSizeMax = Config.GetValue(ITEM_HEIGHT);
+
+                bool nameAsKey = string.IsNullOrWhiteSpace(key.Description);
+                string localeText = nameAsKey ? key.Name : key.Description;
+                string format = "{0}";
+                if (Config.GetValue(SHOW_NAMES) && !nameAsKey)
+                {
+                    format = $"<i><b>{key.Name}</i></b> - " + "{0}";
+                }
+
+                if (key.InternalAccessOnly) format = $"<color=#dec15b>{format}</color>";
+
+                // Build ui
+
+                var localized = new LocaleString(localeText, format, true, true, null);
+                ui.HorizontalElementWithLabel<Component>(localized, 0.7f, () =>
+                {// Using HorizontalElementWithLabel because it formats nicer than SyncMemberEditorBuilder with text
+                    if(config == Config && !nameAsKey)
+                    {
+                        var localeDriver = root.GetComponentInChildren<LocaleStringDriver>();
+                        if(localeDriver != null)
+                        {
+                            var nameDrive = localeDriver.Slot.AttachComponent<BooleanValueDriver<string>>();
+
+                            nameDrive.State.DriveFromVariable(ConfigKeyVariableNames[SHOW_NAMES]);
+
+                            var fullName = $"<i><b>{key.Name}</i></b> - " + "{0}";
+                            if (key.InternalAccessOnly) fullName = $"<color=#dec15b>{fullName}</color>";
+
+                            nameDrive.FalseValue.Value = key.InternalAccessOnly ? "<color=#dec15b>{0}</color>" : "{0}";
+                            nameDrive.TrueValue.Value = fullName;
+
+                            nameDrive.TargetField.TrySet(localeDriver.Format);
                         }
-                        return; // Skip updating config
                     }
 
-                    config.Set(typedKey, syncF.Value, "NeosModSettings variable change");
-                };
+                    ui.HorizontalLayout(4f, childAlignment: Alignment.MiddleLeft).ForceExpandHeight.Value = false;
 
-                bool nameAsKey = string.IsNullOrWhiteSpace(key.Description);
-                string localeText = nameAsKey ? key.Name : key.Description;
-                string format = "{0}";
-                if (Config.GetValue(SHOW_NAMES) && !nameAsKey)
-                {
-                    format = $"<i><b>{key.Name}</i></b> - " + "{0}";
-                }
-
-                if (key.InternalAccessOnly) format = $"<color=#dec15b>{format}</color>";
-
-                RadiantUI_Constants.SetupDefaultStyle(ui);
-
-                ui.Style.TextAutoSizeMax = Config.GetValue(ITEM_HEIGHT);
-                var localized = new LocaleString(localeText, format, true, true, null);
-                ui.HorizontalElementWithLabel<Component>(localized, 0.7f, () =>
-                {// Using HorizontalElementWithLabel because it formats nicer than SyncMemberEditorBuilder with text
-                    SyncMemberEditorBuilder.Build(dynvar.Value, null, dynvar.GetSyncMemberFieldInfo(4), ui); // Using null for name makes it skip generating text
-                    // Can't recolor fields because PrimitiveMemeberEditor sets the colors on changes
-
-                    // This is horrid, I have given up trying to get it to work in the dynvar on changed event
-                    // And because of matrixes there can be multiple memberEditors
-                    // Lambdas all the way down!
-                    ui.Root.ForeachComponentInChildren<PrimitiveMemberEditor>((pme) => // ;-;
-                    { // Get every text editor from each primitive member editor
-
-                        /*  This code is to fit the fields into the RadiantUI style 
-                         *  It is commented bc I dislike that it flashes white for a frame when generated
-                         *  Until I figure out a workaround this will be commented
-                         *  
-                        var _btn = pme.GetSyncMember(9) as SyncRef<Button>;
-                        _btn.Target = null; // Clear the button ref bc Primitive member editor sets color on changes incase of drives and stuff
-                                            // Not needed in this use case and I wanna recolor buttons
-                        
-                        // Using for each instead of just using the previous ref so I can include the reset buttons as well in one go
-                        pme.Slot.ForeachComponentInChildren<Button>((btn) => {
-                            btn.SetColors(RadiantUI_Constants.BUTTON_COLOR);
-                            btn.Slot.GetComponentInChildren<Text>().Color.Value = RadiantUI_Constants.TEXT_COLOR;
-                        }); 
-                        */
-
-
-                        SyncRef<TextEditor> _textEditor = pme.GetSyncMember(7) as SyncRef<TextEditor>; // Get TextEditor from PrimitiveMemberEditor
-                        if (_textEditor == null) return;
-                        _textEditor.Target.LocalEditingFinished += (te) =>
-                        { // Value Validation
-                            bool isSet = config.TryGetValue(key, out object configValue);
-                            if (!key.Validate(dynvar.Value.Value))
-                            { // Fallback if validation fails
-                                Debug($"Failed Validation for {dynvar.VariableName.Value}");
-                                dynvar.Value.Value = isSet ? (T)configValue : Coder<T>.Default; // Set to old value if is set Else set to default for that value
-                                return;
-                            }
-                        };
-                    });
+                    ui.Style.FlexibleWidth = 10f;
+                    SyncMemberEditorBuilder.Build(syncField, null, fieldInfo, ui); // Using null for name makes it skip generating text
+                    ui.Style.FlexibleWidth = -1f;
 
                     ui.Root.ForeachComponentInChildren<Text>((text) =>
                     { // Make value path text readable
@@ -558,6 +554,9 @@ namespace NeosModSettings
                         if (text.Slot.Parent.GetComponent<Button>() != null) return; // Ignore text under buttons
                         text.Color.Value = RadiantUI_Constants.TEXT_COLOR;
                     });
+
+                    AddResetKeyButton(ui, config, typedKey);
+                    ui.NestOut();
 
                     return null; // HorizontalElementWithLabel requires a return type that implements a component
                 });
@@ -567,104 +566,79 @@ namespace NeosModSettings
 
                 return root;
             }
-            public static Slot GenerateConfigTypeField(UIBuilder ui, string ModName, ModConfiguration config, ModConfigurationKey key)
-            { /* *:* )
-               * I wanted these field generation functions to be more dynamic and not have to have a separate one just for type Type
-               * but I am just too tired bc of current events
-               *
-               *
-               */
-                Debug($"GenerateConfigField for type Type");
 
+            private static void AddResetKeyButton<T>(UIBuilder ui, ModConfiguration modConfiguration, ModConfigurationKey<T> configKey)
+            {
+                if (modConfiguration != Config && !Config.GetValue(PER_KEY_RESET)) return;
+
+                ui.PushStyle();
                 ui.Style.MinHeight = Config.GetValue(ITEM_HEIGHT);
-                Slot root = ui.Empty("ConfigElement");
-                ui.NestInto(root);
+                ui.Style.MinWidth = Config.GetValue(ITEM_HEIGHT);
+                ui.Panel();
+                ui.PopStyle();
 
-                var typeField = root.AttachComponent<TypeField>();
-                var dynvar = root.AttachComponent<DynamicReferenceVariable<SyncType>>();
-                dynvar.VariableName.Value = $"Config/{ModName}.{key.Name}";
+                ui.Root.ActiveSelf_Field.DriveFromVariable(ConfigKeyVariableNames[PER_KEY_RESET]);
+                
 
-                dynvar.Reference.TrySet(typeField.Type);
+                ui.Image(RadiantUI_Constants.BUTTON_COLOR).RectTransform.Pivot.Value = new float2(0f, 0.5f);
+                ui.Current.AttachComponent<AspectRatioFitter>();
+                ui.Current.AttachComponent<Button>().LocalPressed += (btn, evt) => ResetConfigKey(modConfiguration, configKey);
 
+                ui.Nest();
+                var text = ui.Text("🗘");
 
-                var typedKey = key as ModConfigurationKey<Type>;
+                if (configKey.InternalAccessOnly) text.Color.Value = color.FromHexCode("#c44");
 
-                typeField.Type.Value = config.TryGetValue(typedKey, out Type cv) ? cv : null; // Set initial value
-                typeField.Type.OnValueChange += (syncF) => // Cursed solution, I know
-                { // Update config
-
-                    bool isSet = config.TryGetValue(typedKey, out Type configValue);
-                    if (isSet && Object.Equals(configValue, syncF.Value)) return; // Skip if new value is equal to old
-
-                    if (!key.Validate(syncF.Value))
-                    { // Fallback if validation fails
-                        Debug($"Failed Validation for {dynvar.VariableName.Value}");
-                        // Writing to the variable here breaks the editor
-                        // Also you wouldn't want you are typing to be reset while typing it
-                        return; // Skip updating config
-                    }
-
-                    config.Set(key, syncF.Value, "NeosModSettings variable change");
-                };
-
-                bool nameAsKey = string.IsNullOrWhiteSpace(key.Description);
-                string localeText = nameAsKey ? key.Name : key.Description;
-                string format = "{0}";
-                if (Config.GetValue(SHOW_NAMES) && !nameAsKey)
-                {
-                    format = $"<i><b>{key.Name}</i></b> - " + "{0}";
-                }
-
-                if (key.InternalAccessOnly) format = $"<color=#dec15b>{format}</color>";
-
-                RadiantUI_Constants.SetupDefaultStyle(ui);
-
-                ui.Style.TextAutoSizeMax = Config.GetValue(ITEM_HEIGHT);
-                var localized = new LocaleString(localeText, format, true, true, null);
-                ui.HorizontalElementWithLabel<Component>(localized, 0.7f, () =>
-                {// Using HorizontalElementWithLabel because it formats nicer than SyncMemberEditorBuilder with text
-                    SyncMemberEditorBuilder.Build(typeField.Type, null, dynvar.GetSyncMemberFieldInfo(4), ui); // Using null for name makes it skip generating text
-                    // Can't recolor fields because PrimitiveMemeberEditor sets the colors on changes
-
-
-                    // This is horrid, I have given up trying to get it to work in the dynvar on changed event
-                    // And because of matrixes there can be multiple memberEditors
-                    // Lambdas all the way down!
-                    ui.Root.ForeachComponentInChildren<PrimitiveMemberEditor>((pme) => // ;-;
-                    { // Get every text editor from each primitive member editor
-
-                        SyncRef<TextEditor> _textEditor = pme.GetSyncMember(7) as SyncRef<TextEditor>; // Get TextEditor from PrimitiveMemberEditor
-                        if (_textEditor == null) return;
-                        _textEditor.Target.LocalEditingFinished += (te) =>
-                        { // Value Validation
-                            bool isSet = config.TryGetValue(typedKey, out Type configValue);
-                            if (!key.Validate(typeField.Type.Value))
-                            { // Fallback if validation fails
-                                Debug($"Failed Validation for {dynvar.VariableName.Value}");
-                                typeField.Type.Value = isSet ? configValue : null; // Set to old value if is set Else set to default for that value
-                                return;
-                            }
-                        };
-                    });
-
-
-                    ui.Root.ForeachComponentInChildren<Text>((text) =>
-                    { // Make value path text readable
-                        // XYZW, RGBA, etc.
-                        if (text.Slot.Parent.GetComponent<Button>() != null) return; // Ignore text under buttons
-                        text.Color.Value = RadiantUI_Constants.TEXT_COLOR;
-                    });
-
-
-                    return null; // HorizontalElementWithLabel requires a return type that implements a component
-                });
-
-                ui.Style.MinHeight = -1f;
                 ui.NestOut();
-
-                return root;
+                ui.NestOut();
             }
 
+            private static T ValidateConfigField<T>(T value, ModConfiguration modConfiguration, ModConfigurationKey<T> configKey, T defaultValue)
+            {
+                bool isValid = false;
+
+                try {
+                    isValid = configKey.Validate(value);
+                } catch (Exception e) {
+                    //optionsRoot.LocalUser.IsDirectlyInteracting()
+                    
+                    string valueString = $"the value \"{value}\"";
+
+                    if (value == null)
+                        valueString = "a null value";
+                    else if (string.IsNullOrWhiteSpace(value.ToString())) 
+                        valueString += " (This value is not null)";
+
+                    if (optionsRoot.LocalUser.IsDirectlyInteracting())
+                    {
+                        Debug($"Validation method for configuration item {configKey.Name} from {modConfiguration.Owner.Name} has thrown an error for {valueString}\n\tThis was hidden as the user is currently editing a field", e);
+                    } else
+                    {
+                        Error($"Validation method for configuration item {configKey.Name} from {modConfiguration.Owner.Name} has thrown an error for {valueString}", e);
+                    }
+                    
+                }
+
+                if (!isValid)
+                { // Fallback if validation fails
+                    Debug($"Failed Validation for {modConfiguration.Owner.Name}.{configKey.Name}");
+
+                    bool isSet = modConfiguration.TryGetValue(configKey, out T configValue);
+                    return isSet ? configValue : defaultValue; // Set to old value if is set Else set to default for that value
+                }
+                return value;
+            }
+            private static void HandleConfigFieldChange<T>(SyncField<T> syncField, ModConfiguration modConfiguration, ModConfigurationKey<T> configKey)
+            {
+                bool isSet = modConfiguration.TryGetValue(configKey, out T configValue);
+                if (isSet && (Equals(configValue, syncField.Value) || !Equals(syncField.Value, syncField.Value))) return; // Skip if new value is unmodified or is logically inconsistent (self != self)
+
+                try {
+                    if (!configKey.Validate(syncField.Value)) return;
+                } catch { return; }
+
+                modConfiguration.Set(configKey, syncField.Value, "NeosModSettings variable change");
+            }
 
             private static int SaveAllConfigs()
             {
@@ -745,27 +719,26 @@ namespace NeosModSettings
                     return;
                 var config = mod.GetConfiguration();
 
-                // Incase you are resetting NMS config
                 bool resetInternal = Config.GetValue(RESET_INTERNAL);
                 foreach (ModConfigurationKey key in config.ConfigurationItemDefinitions)
                 { // Generate field for every supported config
                     if (!resetInternal && key.InternalAccessOnly) continue;
 
-
-                    config.Unset(key);
-                    if(fireConfigurationChangedEvent == null) {
-                        // Private method moment :(
-                        fireConfigurationChangedEvent = AccessTools.Method(typeof(ModConfiguration), "FireConfigurationChangedEvent");
-                    }
-                    // Unset does not trigger the config changed event
-                    fireConfigurationChangedEvent.Invoke(config, new object[] { key, "NeosModSettings reset" });
-
-                    // Get default type
-                    object value = key.TryComputeDefault(out object defaultValue) ? defaultValue : key.ValueType().GetDefaultValue(); // How did I miss this extension??
-                        //typeof(Coder<>).MakeGenericType(key.ValueType()).GetProperty("Default").GetValue(null); // Feel free do to a pull request at any time *:*)
-
-                    optionsRoot.TryWriteDynamicValueOfType(key.ValueType(), $"Config/{selectedMod}.{key.Name}", value);
+                    ResetConfigKey(config, key);
                 }
+            }
+
+            private static void ResetConfigKey(ModConfiguration config, ModConfigurationKey key)
+            {
+                config.Unset(key);
+
+                // Unset does not trigger the config changed event
+                fireConfigurationChangedEvent.Invoke(config, new object[] { key, "NeosModSettings reset" });
+
+                // Get default type
+                object value = key.TryComputeDefault(out object defaultValue) ? defaultValue : key.ValueType().GetDefaultValue(); // How did I miss this extension??
+
+                optionsRoot.TryWriteDynamicValueOfType(key.ValueType(), $"Config/{config.Owner.Name}.{key.Name}", value);
             }
         }
 
@@ -791,14 +764,9 @@ namespace NeosModSettings
                 modsRoot.DestroyChildren();
                 ModSettingsScreen.GenerateModButtons(ui);
             }
-
-            if (@event.Key == RESET_INTERNAL)
+            if (ConfigKeyVariableNames.ContainsKey(@event.Key))
             {
-                optionsRoot.SyncWriteDynamicValue("Config/_includeInternal", @event.Config.GetValue(RESET_INTERNAL));
-            }
-            if (@event.Key == HIGHLIGHT_TINT)
-            {
-                optionsRoot.SyncWriteDynamicValue("Config/_highlightTint", @event.Config.GetValue(HIGHLIGHT_TINT));
+                optionsRoot.SyncWriteDynamicValueType(@event.Key.ValueType(), ConfigKeyVariableNames[@event.Key], Config.GetValue(@event.Key));
             }
         }
     }
