@@ -33,7 +33,6 @@ namespace NeosModSettings
 
 
         // Test Variables
-#pragma warning disable IDE0052 // Remove unread private members
             [AutoRegisterConfigKey] // Huh dummy can be used as a spacer, neat
             private static readonly ModConfigurationKey<dummy> TEST_DUMMY = new ModConfigurationKey<dummy>("dummy", "---------------------------------------------------------------------------------------------------------------------------------");
             [AutoRegisterConfigKey]
@@ -53,10 +52,20 @@ namespace NeosModSettings
             [AutoRegisterConfigKey]
             private static readonly ModConfigurationKey<Uri> TEST_URI = new ModConfigurationKey<Uri>("testUri", "Test Uri", () => null);
             [AutoRegisterConfigKey]
-            private static readonly ModConfigurationKey<Uri> TEST_INTERNAL = new ModConfigurationKey<Uri>("testInternal", "Test internal access only key, must be http or https", () => new Uri("https://example.com"), true, (uri)=>uri.Scheme == "https" || uri.Scheme == "http");
+            private static readonly ModConfigurationKey<Uri> TEST_INTERNAL = new ModConfigurationKey<Uri>("testInternal", "Test internal access only key, must be http or https", () => new Uri("https://example.com"), true, (uri) => uri != null && (uri.Scheme == "https" || uri.Scheme == "http"));
+            [AutoRegisterConfigKey]
+            private static readonly ModConfigurationKey<Uri> TEST_INTERNAL_NO_NULL_CHECK = new ModConfigurationKey<Uri>("testInternalNoNull", "Test internal access only key, must be http or https, error thrown on null", () => new Uri("https://example.com"), true, (uri) => uri.Scheme == "https" || uri.Scheme == "http");
             [AutoRegisterConfigKey]
             private static readonly ModConfigurationKey<float2x2> TEST_NAN_VECTOR_INTERNAL = new ModConfigurationKey<float2x2>("testNanVectorInternal", "Test internal access only NaN Vector for pr #11", () => new float2x2(float.NaN, float.NaN, float.NaN, float.NaN), true);
-#pragma warning restore IDE0052
+            [AutoRegisterConfigKey]
+            private static readonly ModConfigurationKey<string> TEST_LOCAL_KEY = new ModConfigurationKey<string>("testLocaleKey", "Settings.Locale.ChangeLanguage", () => "Locale Test", true, (str) => str == "Locale Test");
+            [AutoRegisterConfigKey]
+            private static readonly ModConfigurationKey<string> TEST_ERROR_ON_STR_EMPTY = new ModConfigurationKey<string>("testErrOnStringEmpty", "Test error on string empty", () => "Value", valueValidator: (str) =>
+            {
+                if (string.IsNullOrWhiteSpace(str))
+                    throw new ArgumentNullException(nameof(str));
+                return true;
+            });
         //
 
         private static NeosModSettings Current;
