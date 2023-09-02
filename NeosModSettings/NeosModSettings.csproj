@@ -7,12 +7,17 @@
     <AssemblyTitle>NeosModSettings</AssemblyTitle>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <TargetFramework>net472</TargetFramework>
+	<LangVersion>preview</LangVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
-    <NeosPath>$(MSBuildThisFileDirectory)NeosVR</NeosPath>
-    <NeosPath Condition="Exists('C:\Program Files (x86)\Steam\steamapps\common\NeosVR\')">C:\Program Files (x86)\Steam\steamapps\common\NeosVR\</NeosPath>
-    <NeosPath Condition="Exists('$(HOME)/.steam/steam/steamapps/common/NeosVR/')">$(HOME)/.steam/steam/steamapps/common/NeosVR/</NeosPath>
+
+	<NeosPath>$(MSBuildThisFileDirectory)NeosVR</NeosPath>
     <NeosPath Condition="Exists('E:\Programs\Steam\steamapps\common\NeosVR')">E:\Programs\Steam\steamapps\common\NeosVR\</NeosPath>
+    <NeosPath Condition="Exists('$(HOME)/.steam/steam/steamapps/common/NeosVR/')">$(HOME)/.steam/steam/steamapps/common/NeosVR/</NeosPath>
+    <NeosPath Condition="Exists('C:\Program Files (x86)\Steam\steamapps\common\NeosVR\')">C:\Program Files (x86)\Steam\steamapps\common\NeosVR\</NeosPath>
+
+	<AppData Condition="Exists('$(NeosPath)Neos_Data')">$(NeosPath)Neos_Data\Managed\</AppData>
+
     <CopyLocal>false</CopyLocal>
     <CopyToMods Condition="'$(CopyToMods)'==''">true</CopyToMods>
     <DebugSymbols Condition="'$(Configuration)'=='Release'">false</DebugSymbols>
@@ -28,20 +33,20 @@
       <HintPath Condition="Exists('$(NeosPath)0Harmony.dll')">$(NeosPath)0Harmony.dll</HintPath>
     </Reference>
     <Reference Include="BaseX">
-      <HintPath>$(NeosPath)Neos_Data\Managed\BaseX.dll</HintPath>
+      <HintPath>$(AppData)BaseX.dll</HintPath>
     </Reference>
     <Reference Include="CloudX.Shared">
-      <HintPath>$(NeosPath)Neos_Data\Managed\CloudX.Shared.dll</HintPath>
+      <HintPath>$(AppData)CloudX.Shared.dll</HintPath>
     </Reference>
     <Reference Include="FrooxEngine">
-      <HintPath>$(NeosPath)Neos_Data\Managed\FrooxEngine.dll</HintPath>
+      <HintPath>$(AppData)FrooxEngine.dll</HintPath>
     </Reference>
     <Reference Include="NeosModLoader">
       <HintPath>$(NeosPath)NeosModLoader.dll</HintPath>
       <HintPath>$(NeosPath)Libraries\NeosModLoader.dll</HintPath>
     </Reference>
 	  <Reference Include="System.Memory">
-		  <HintPath>$(NeosPath)Neos_Data\Managed\System.Memory.dll</HintPath>
+		  <HintPath>$(AppData)System.Memory.dll</HintPath>
 	  </Reference>
   </ItemGroup>
 

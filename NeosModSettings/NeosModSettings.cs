@@ -73,7 +73,7 @@ namespace NeosModSettings
         private static NeosModSettings Current;
         private static ModConfiguration Config;
         private static RadiantDashScreen CurrentScreen;
-        private static readonly Dictionary<string, NeosModBase> configuredModList = new Dictionary<string, NeosModBase>();
+        private static readonly Dictionary<string, NeosModBase> configuredModList = new();
 
         private static Slot optionsRoot;
         private static Slot modsRoot;
@@ -81,8 +81,10 @@ namespace NeosModSettings
         private static readonly MethodInfo generateConfigFieldT = typeof(ModSettingsScreen).GetMethod(nameof(ModSettingsScreen.GenerateConfigField));
         private static readonly MethodInfo fireConfigurationChangedEvent = typeof(ModConfiguration).GetMethod("FireConfigurationChangedEvent", BindingFlags.NonPublic | BindingFlags.Instance);
 
+        internal static readonly string InternalConfigUpdateLabel = "NeosModSettings Edit Value";
+        internal static readonly string InternalConfigResetLabel = "NeosModSettings Config Reset";
 
-        private static readonly Dictionary<ModConfigurationKey, string> ConfigKeyVariableNames = new Dictionary<ModConfigurationKey, string> {
+        private static readonly Dictionary<ModConfigurationKey, string> ConfigKeyVariableNames = new(){
             { SHOW_NAMES, "Config/_showFullName" },
             { SHOW_INTERNAL, "Config/_showInternal" },
             { RESET_INTERNAL, "Config/_resetInternal" },
@@ -98,7 +100,7 @@ namespace NeosModSettings
             ModConfiguration.OnAnyConfigurationChanged += OnConfigurationChanged;
             Config.OnThisConfigurationChanged += OnThisConfigurationChanged;
 
-            Harmony harmony = new Harmony("me.badhaloninja.NeosModSettings");
+            Harmony harmony = new("me.badhaloninja.NeosModSettings");
             harmony.PatchAll();
         }
 
@@ -290,7 +292,7 @@ namespace NeosModSettings
                 ui.Style.PreferredWidth = 64f;
 
 
-                Uri githubMark = new Uri("neosdb:///0c2ea8c328f68cc70eaa017a17cda0533895f1bbaa8764db9646770cd1b1a0b4.png");
+                Uri githubMark = new("neosdb:///0c2ea8c328f68cc70eaa017a17cda0533895f1bbaa8764db9646770cd1b1a0b4.png");
                 Slot ghBtn = ui.Image(githubMark).Slot;
                 ghBtn.AttachComponent<Hyperlink>().URL.Value = new Uri(Current.Link);
                 ghBtn.AttachComponent<Button>(); // There does not appear to be a UiBuilder func to make a button out of a sprite, only ones to put a sprite on a button
@@ -637,7 +639,7 @@ namespace NeosModSettings
                     if (!configKey.Validate(syncField.Value)) return;
                 } catch { return; }
 
-                modConfiguration.Set(configKey, syncField.Value, "NeosModSettings variable change");
+                modConfiguration.Set(configKey, syncField.Value, InternalConfigUpdateLabel);
             }
 
             private static int SaveAllConfigs()
@@ -733,7 +735,7 @@ namespace NeosModSettings
                 config.Unset(key);
 
                 // Unset does not trigger the config changed event
-                fireConfigurationChangedEvent.Invoke(config, new object[] { key, "NeosModSettings reset" });
+                fireConfigurationChangedEvent.Invoke(config, new object[] { key, InternalConfigResetLabel });
 
                 // Get default type
                 object value = key.TryComputeDefault(out object defaultValue) ? defaultValue : key.ValueType().GetDefaultValue(); // How did I miss this extension??
@@ -745,7 +747,7 @@ namespace NeosModSettings
 
         private void OnConfigurationChanged(ConfigurationChangedEvent @event)
         {
-            if (@event.Label == "NeosModSettings variable change") return;
+            if (@event.Label == InternalConfigUpdateLabel) return;
             Debug($"ConfigurationChangedEvent fired for mod \"{@event.Config.Owner.Name}\" Config \"{@event.Key.Name}\"");
             if (optionsRoot == null) return; // Skip if options root hasn't been generated yet
             
