@@ -2,9 +2,11 @@
 using FrooxEngine;
 using FrooxEngine.UIX;
 using BaseX;
+using System.Reflection;
+
 namespace NeosModSettings
 {
-    public static class NMSExtensions
+    public static class UtilityExtensions
     {
 		public static ButtonValueCycle<T> SetupValueToggle<T>(this Button button, IField<T> target, T value, OptionDescription<T>? enabled, OptionDescription<T>? disabled)
 		{ // SetupValueCycle does not seem to have a way to set a fallback for the DescriptionDriver
@@ -14,7 +16,7 @@ namespace NeosModSettings
 			buttonValueCycle.Values.Add(Coder<T>.Default);
 			if (enabled != null)
 			{
-				ValueOptionDescriptionDriver<T> valueOptionDescriptionDriver = button.EnsureOptionDescriptionDriver(target, ((enabled != null) ? enabled.GetValueOrDefault().label.content : null) != null || ((disabled != null) ? disabled.GetValueOrDefault().label.content : null) != null, false, null);
+				ValueOptionDescriptionDriver<T> valueOptionDescriptionDriver = button.EnsureOptionDescriptionDriver(target, (enabled?.label.content) != null || (disabled?.label.content) != null);
 
 				ValueOptionDescriptionDriver<T>.Option option = valueOptionDescriptionDriver.Options.Add();
 				option.SetupFrom(enabled.Value);
@@ -35,6 +37,7 @@ namespace NeosModSettings
 
 			DynamicVariableSpace dynamicVariableSpace = root.FindSpace(spaceName);
 			if (dynamicVariableSpace == null) return false;
+
 			return dynamicVariableSpace.TryWriteValue(text, value);
 		}
 		public static bool TryWriteDynamicType(this Slot root, string name, Type value)
@@ -63,16 +66,17 @@ namespace NeosModSettings
 			DynamicVariableSpace dynamicVariableSpace = root.FindSpace(spaceName);
 			if (dynamicVariableSpace == null) return false;
 			return dynamicVariableSpace.TryReadValue(text, out value);
-		}
+        }
 
 
 
-		public static bool TryWriteDynamicValueOfType(this Slot root, Type type, string name, object value)
+
+		private static readonly MethodInfo tryWriteDynamicValueMethod = typeof(UtilityExtensions).GetMethod(nameof(TryWriteDynamicValue));
+        public static bool TryWriteDynamicValueOfType(this Slot root, Type type, string name, object value)
 		{
 			if (type == typeof(Type)) return root.TryWriteDynamicType(name, (Type)value);
 
-			var method = typeof(NMSExtensions).GetMethod(nameof(TryWriteDynamicValue));
-			var genMethod = method.MakeGenericMethod(type);
+			var genMethod = tryWriteDynamicValueMethod.MakeGenericMethod(type);
 			object[] args = new object[] { root, name, value };
 			
 			return (bool)genMethod.Invoke(null, args);
@@ -87,10 +91,8 @@ namespace NeosModSettings
                 root.TryWriteDynamicValue(name, value);
                 return;
             }
-            root.RunSynchronously(() => // Move to thread that can interact with data model
-            { // Try to update config field
-                root.TryWriteDynamicValue(name, value);
-            });
+            // Move to thread that can interact with data model
+            root.RunSynchronously(() => root.TryWriteDynamicValue(name, value));
         }
         public static void SyncWriteDynamicValueType(this Slot root, Type type, string name, object value)
 		{
@@ -99,18 +101,8 @@ namespace NeosModSettings
                 root.TryWriteDynamicValueOfType(type, name, value);
                 return;
             }
-            root.RunSynchronously(() => // Move to thread that can interact with data model
-            { // Try to update config field
-                root.TryWriteDynamicValueOfType(type, name, value);
-            });
+            // Move to thread that can interact with data model
+            root.RunSynchronously(() => root.TryWriteDynamicValueOfType(type, name, value));
         }
-
-
-		public static void InitializeVariable<T>(this Slot root, string name, T value)
-		{
-            var variable = root.AttachComponent<DynamicValueVariable<T>>();
-            variable.VariableName.Value = name;
-            variable.Value.Value = value;
-        }
-    }
+	}
 }
