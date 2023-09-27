@@ -1,5 +1,7 @@
-﻿# NeosModSettings
+# I will not update this anymore for NeosVR
+I have ported this to Resonite [here](https://github.com/badhaloninja/ResoniteModSettings)
 
+# NeosModLoader
 A [NeosModLoader](https://github.com/zkxs/NeosModLoader) mod for [Neos VR](https://neos.com/). Adds a dash screen to edit mod configs
 
 ## Installation
